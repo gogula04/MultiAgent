@@ -12,8 +12,8 @@ This document explains how to run the multi-agent verification tool against the 
 
 Use two folders in the container:
 
-- `foundations-and-framework` = the repo to scan
-- `MultiAgent/verification-automation` = the verification tool
+- `/workspaces/foundations-and-framework` = the repo to scan
+- `/workspaces/MultiAgent/verification-automation` = the verification tool
 
 Do not point the tool at its own repo when scanning requirements.
 
@@ -62,7 +62,7 @@ http://127.0.0.1:8787/
 ## 6. Use the UI
 
 1. Enter a requirement ID or name, for example `FAF-LLR-1323`.
-2. Confirm the repo root is the real `foundations-and-framework` folder.
+2. Confirm the repo root is the real `/workspaces/foundations-and-framework` folder.
 3. Choose a mode:
    - `Auto`
    - `Direct`
@@ -120,8 +120,7 @@ If the requirement ID cannot be resolved from the repo, the pipeline should stop
 
 Before trusting the output, verify:
 
-- the repo root is `foundations-and-framework`
+- the repo root is `/workspaces/foundations-and-framework`
 - the requirement exists in `requirements/HLR` or `requirements/LLR`
 - the mode shown in the UI is the one you want
 - the output folder is inside the company repo or another approved location
-
