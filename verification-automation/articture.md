@@ -50,6 +50,10 @@ flowchart TD
   S --> K
 
   R4 --> T[Output: Failed Suite - Needs Developer Fix]
+
+  P --> U[Learning Agent]
+  T --> U
+  U --> V[Learning Memory + Run History]
 ```
 
 ## Architecture Summary
@@ -66,6 +70,7 @@ The system is organized as a strict verification pipeline:
 8. Execute the approved verification package.
 9. Collect logs, coverage, and evidence.
 10. Report proof or triage failures with a classification.
+11. Record the run in the learning memory store for future retrieval and improvement.
 
 ## Mode Behavior
 
@@ -80,6 +85,22 @@ The system is organized as a strict verification pipeline:
 - **Manual**
   - Used when the verification must be driven directly from RVSTest vectors.
   - Produces manual RVSTest procedures and supporting notes.
+
+## Learning Agent
+
+The dedicated Learning Agent records:
+
+- successful verified runs as reusable examples
+- blocked runs as negative examples
+- failed runs with classification and suggested fixes
+- repository evidence patterns for future retrieval
+
+The learning memory is stored alongside the run output in:
+
+- `learning/run_history.jsonl`
+- `learning/gold_examples.jsonl`
+- `learning/failure_examples.jsonl`
+- `learning/learning_summary.md`
 
 ## Failure Policy
 
@@ -102,4 +123,7 @@ A successful run can generate:
 - `rapita/rvsconfig.xml`
 - `rapita/rapita-node-mapping.md`
 - `proof_report.md`
-
+- `learning/run_history.jsonl`
+- `learning/gold_examples.jsonl`
+- `learning/failure_examples.jsonl`
+- `learning/learning_summary.md`

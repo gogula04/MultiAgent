@@ -191,6 +191,8 @@ class VerificationUIHandler(BaseHTTPRequestHandler):
         review_notes = html.escape(review_notes_value)
         proof_summary = html.escape(str(proof.get("summary", ""))) if proof else ""
         proof_conclusion = html.escape(str(proof.get("conclusion", ""))) if proof else ""
+        learning_summary = html.escape(str(last_result.get("learning_summary_text", ""))) if isinstance(last_result, dict) else ""
+        learning_status_value = str(last_result.get("learning_status", "")) if isinstance(last_result, dict) else ""
         coverage = proof.get("coverage", []) if proof else []
         test_results = proof.get("test_results", {}) if proof else {}
         review_decision_summary = ""
@@ -239,6 +241,7 @@ class VerificationUIHandler(BaseHTTPRequestHandler):
                 ("Execution", "pending"),
                 ("Coverage", "pending"),
                 ("Proof", "pending"),
+                ("Learning", "pending"),
             ]
         elif current_status == "blocked":
             steps = [
@@ -252,6 +255,7 @@ class VerificationUIHandler(BaseHTTPRequestHandler):
                 ("Execution", "ready"),
                 ("Coverage", "ready"),
                 ("Proof", "ready"),
+                ("Learning", "done" if last_result.get("learning_status") == "recorded" else "pending"),
             ]
         elif last_result:
             steps = [
@@ -265,6 +269,7 @@ class VerificationUIHandler(BaseHTTPRequestHandler):
                 ("Execution", "done" if test_results else "ready"),
                 ("Coverage", "done" if coverage else "ready"),
                 ("Proof", "done" if proof else "ready"),
+                ("Learning", "done" if last_result.get("learning_status") == "recorded" else "ready"),
             ]
         else:
             steps = [
@@ -278,6 +283,7 @@ class VerificationUIHandler(BaseHTTPRequestHandler):
                 ("Execution", "ready"),
                 ("Coverage", "ready"),
                 ("Proof", "ready"),
+                ("Learning", "ready"),
             ]
         step_html = "".join(
             f"<div class='step {status}'><span>{html.escape(label)}</span><small>{html.escape(status.replace('_', ' '))}</small></div>"
@@ -310,6 +316,11 @@ class VerificationUIHandler(BaseHTTPRequestHandler):
                 <div class="subpanel full">
                   <h3>Conclusion</h3>
                   <p>{proof_conclusion or "The evidence package will appear here after execution."}</p>
+                </div>
+                <div class="subpanel full">
+                  <h3>Learning Agent</h3>
+                  <p>{learning_summary or "Learning memory will be recorded from verified, blocked, or failed runs."}</p>
+                  <p class="muted">Status: {html.escape(learning_status_value or "not recorded")}</p>
                 </div>
               </section>
             """

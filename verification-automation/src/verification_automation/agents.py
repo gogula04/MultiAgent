@@ -31,6 +31,7 @@ from .rapita_assets import render_node_mapping, render_rvsconfig_xml
 from .repo_scan import RepoDiscovery, scan_repository
 from .state import VerificationState
 from .coverage import analyze_verification_coverage
+from .learning import learn_from_run
 from .requirement_resolver import resolve_requirement
 
 
@@ -340,6 +341,12 @@ def build_proof(state: VerificationState, model: ModelAdapter) -> VerificationSt
     state["proof_report"] = report.to_dict()
     state.setdefault("logs", []).append("Proof report created.")
     return state
+
+
+def learn(state: VerificationState, output_dir: Path) -> VerificationState:
+    """Record the run outcome as reusable learning memory."""
+
+    return learn_from_run(state, output_dir)
 
 
 def write_outputs(state: VerificationState, output_dir: Path) -> VerificationState:

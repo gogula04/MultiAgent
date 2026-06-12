@@ -12,6 +12,7 @@ from .agents import (
     build_setup_and_tests,
     discover_repository,
     intake_requirement,
+    learn,
     load_model,
     map_source_and_dictionaries,
     parse_requirement,
@@ -59,6 +60,7 @@ def build_graph(config: AppConfig):
     graph.add_node("rapita", lambda state: run_rapita_pipeline(state, config, Path(state.get("output_dir", "artifacts"))))
     graph.add_node("coverage", lambda state: analyze_coverage(state, model))
     graph.add_node("triage", lambda state: triage_failures(state, Path(state.get("output_dir", "artifacts"))))
+    graph.add_node("learn", lambda state: learn(state, Path(state.get("output_dir", "artifacts"))))
     graph.add_node("proof", lambda state: build_proof(state, model))
     graph.add_node("write_report", lambda state: write_outputs(state, Path(state.get("output_dir", "artifacts"))))
 
@@ -68,7 +70,7 @@ def build_graph(config: AppConfig):
         return "blocked" if state.get("status") == "blocked" else "discover"
 
     graph.add_node("blocked", lambda state: state)
-    graph.add_edge("blocked", "write_report")
+    graph.add_edge("blocked", "learn")
     graph.add_conditional_edges(
         "resolve",
         resolve_route,
@@ -133,7 +135,8 @@ def build_graph(config: AppConfig):
         "hybrid_builder": "hybrid_builder",
         "manual_builder": "manual_builder",
     })
-    graph.add_edge("proof", "write_report")
+    graph.add_edge("proof", "learn")
+    graph.add_edge("learn", "write_report")
     graph.add_edge("write_report", END)
 
     return graph.compile()

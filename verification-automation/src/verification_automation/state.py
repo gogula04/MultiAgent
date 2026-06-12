@@ -51,6 +51,11 @@ class VerificationState(TypedDict, total=False):
     assumptions: list[str]
     unresolved: list[str]
     manual_review: list[str]
+    learning_status: str
+    learning_summary_text: str
+    learning_record: dict
+    learning_artifacts: dict
+    learning_store_path: str
     proof_report: dict
     status: str
     repair_attempts: int

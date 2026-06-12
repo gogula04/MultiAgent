@@ -13,6 +13,7 @@ from .agents import (
     build_setup_and_tests,
     discover_repository,
     intake_requirement,
+    learn,
     load_model,
     map_source_and_dictionaries,
     parse_requirement,
@@ -75,13 +76,18 @@ class VerificationOrchestrator:
 
         validation_error = self._validate_startup_gate(state)
         if validation_error is not None:
-            return validation_error
+            return learn(validation_error, artifact_dir)
 
         model = load_model(self.config)
         state = intake_requirement(state)
         state = resolve_requirement_state(state, self.config)
         if state.get("status") == "blocked":
-            return self._blocked_state(state, state.get("requirement_resolution_notes", "Requirement could not be resolved."))
+            state = self._blocked_state(
+                state,
+                state.get("requirement_resolution_notes", "Requirement could not be resolved."),
+                artifact_dir,
+            )
+            return learn(state, artifact_dir)
         state = discover_repository(state, self.config)
         state = parse_requirement(state, model)
         state = map_source_and_dictionaries(state, model)
@@ -110,6 +116,7 @@ class VerificationOrchestrator:
         state = run_rapita_pipeline(state, self.config, artifact_dir)
         state = analyze_coverage(state, model)
         state = build_proof(state, model)
+        state = learn(state, artifact_dir)
         state = write_outputs(state, artifact_dir)
 
         return state
@@ -162,7 +169,7 @@ class VerificationOrchestrator:
         ]
         return all(path.exists() for path in expected_paths)
 
-    def _blocked_state(self, state: VerificationState, reason: str) -> VerificationState:
+    def _blocked_state(self, state: VerificationState, reason: str, output_dir: Path | None = None) -> VerificationState:
         state["status"] = "blocked"
         state["mode"] = "not selected"
         state["review_status"] = "not reviewed"
@@ -204,4 +211,19 @@ class VerificationOrchestrator:
         state.setdefault("logs", []).append(f"Blocked: {reason}")
         state["unresolved"] = [reason]
         state["manual_review"] = [reason]
+        if output_dir is not None:
+            state["learning_status"] = "recorded"
+            state["learning_summary_text"] = ""
+            state["learning_record"] = {
+                "requirement_identifier": state.get("requirement_identifier", ""),
+                "requirement_name": state.get("requirement_name", ""),
+                "mode": "not selected",
+                "status": "blocked",
+                "outcome": "blocked",
+                "review_status": "not reviewed",
+                "review_notes": reason,
+                "failure_classification": [],
+            }
+            state["learning_artifacts"] = {}
+            state["learning_store_path"] = str(output_dir / "learning")
         return state

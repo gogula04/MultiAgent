@@ -57,7 +57,11 @@ TRIAGE_PROMPT = """You are the failure triage and self-healing agent.
 When tests fail or coverage is low, identify the exact cause and propose the smallest possible correction or missing targeted test.
 """
 
+LEARNING_PROMPT = """You are the dedicated learning agent.
+Convert verified runs, blocked runs, failures, and human corrections into reusable learning memory.
+Store only evidence-backed examples, failure patterns, repo profile notes, and prompt-improvement hints for future runs.
+"""
+
 PROOF_PROMPT = """You are the proof and traceability reporter.
 Generate a certification-friendly report with mappings, assumptions, unresolved items, coverage status, and a final conclusion.
 """
-

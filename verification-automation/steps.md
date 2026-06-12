@@ -80,6 +80,7 @@ The tool should then:
 - execute tests
 - collect coverage
 - generate proof and traceability output
+- record the run in the Learning Agent memory store
 
 ## 7. CLI usage
 
@@ -106,6 +107,7 @@ For a valid requirement in the real repo, the pipeline should:
 8. Run execution
 9. Collect coverage results
 10. Produce a proof and traceability package
+11. Record the run as reusable learning memory
 
 ## 9. What the tool should do when the requirement is missing
 
@@ -124,3 +126,4 @@ Before trusting the output, verify:
 - the requirement exists in `requirements/HLR` or `requirements/LLR`
 - the mode shown in the UI is the one you want
 - the output folder is inside the company repo or another approved location
+- learning files appear under `learning/` in the selected output directory

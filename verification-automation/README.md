@@ -6,7 +6,7 @@ This project is designed to verify software requirements end to end using a
 repo-aware multi-agent pipeline. It scans your company repository, resolves the
 requirement text, maps bolded requirement terms to source and verification
 artifacts, selects the right verification mode, generates drafts, waits for
-review, executes tests, and produces evidence.
+review, executes tests, learns from each run, and produces evidence.
 
 ## What The Tool Does
 
@@ -25,6 +25,8 @@ The tool is built around a strict verification workflow:
 8. Execute approved drafts.
 9. Collect logs, coverage, and test evidence.
 10. Produce proof and traceability output.
+11. Record the run in the learning memory store so future runs can reuse good
+    examples and failure patterns.
 
 ## Supported Verification Modes
 
@@ -63,6 +65,7 @@ It typically generates:
 - Draft artifact generation with a human review gate
 - Execution and proof generation for approved drafts
 - Failure triage with classification for setup, mapping, harness, source, ambiguity, and coverage gaps
+- Dedicated Learning Agent that records gold examples, failure examples, and run history
 - Poolside-ready configuration through environment variables
 - LangChain/LangGraph-compatible orchestration
 - Local fallback mode for development without company credentials
@@ -88,6 +91,10 @@ It typically generates:
 - `rapita/rvsconfig.xml`
 - `rapita/rapita-node-mapping.md`
 - `proof_report.md`
+- `learning/run_history.jsonl`
+- `learning/gold_examples.jsonl`
+- `learning/failure_examples.jsonl`
+- `learning/learning_summary.md`
 
 ## Strict Behavior
 
@@ -180,3 +187,16 @@ The container starts the same UI entrypoint on port `8787`.
 ## Architecture
 
 The full workflow diagram is documented in [`articture.md`](./articture.md).
+
+## Learning Agent
+
+The dedicated Learning Agent gives the tool a feedback loop without direct
+model training. It records:
+
+- verified runs as reusable examples
+- blocked runs as negative examples
+- failed runs with classifications and fix suggestions
+
+That learning memory is stored in the output directory next to the run
+artifacts, so future runs can reuse the repository evidence and correction
+history.
