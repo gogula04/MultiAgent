@@ -428,24 +428,14 @@ def _build_test_cases(behaviors: list[RequirementBehavior], dd_rows: list[DDRow]
                 "verifies": [],
             }
         )
-    if not cases:
+    if not cases and dd_rows:
         cases.append(
             {
-                "name": "tc_smoke_positive",
-                "purpose": "Positive smoke coverage for the main requirement path.",
-                "sets": [],
-                "verifies": [],
+                "name": "tc_repository_positive",
+                "purpose": "Evidence-backed positive path coverage from repository examples.",
+                "sets": _seed_case_sets(dd_rows, behaviors),
+                "verifies": _seed_case_verifies(dd_rows, behaviors),
             }
-        )
-    if mode in {"Direct", "Hybrid"} and all(case["name"] != "tc_smoke_positive" for case in cases):
-        cases.insert(
-            0,
-            {
-                "name": "tc_smoke_positive",
-                "purpose": "Positive smoke coverage for the main requirement path.",
-                "sets": [],
-                "verifies": [],
-            },
         )
     return cases
 
@@ -453,6 +443,68 @@ def _build_test_cases(behaviors: list[RequirementBehavior], dd_rows: list[DDRow]
 def _build_constants(behaviors: list[RequirementBehavior], dd_rows: list[DDRow]) -> list[str]:
     del behaviors, dd_rows
     return []
+
+
+def _seed_case_sets(dd_rows: list[DDRow], behaviors: list[RequirementBehavior]) -> list[tuple[str, object]]:
+    del behaviors
+    sets: list[tuple[str, object]] = []
+    for row in dd_rows:
+        name = row.verification_identifier or row.name
+        lowered = name.lower()
+        if row.element_type == "stub":
+            if "mutextrylockreturn" in lowered or "mutexlockreturn" in lowered or "mutexunlockreturn" in lowered:
+                sets.append((name, "NO_ERROR"))
+            elif "malloc" in lowered:
+                sets.append((name, "0"))
+            elif "sprintf" in lowered:
+                sets.append((name, 0))
+            continue
+        if "use non blocking lock" in lowered:
+            sets.append((name, True))
+        elif "maximum number of elements" in lowered or "queue capacity" in lowered:
+            sets.append((name, 5))
+        elif "element size" in lowered:
+            sets.append((name, 4))
+        elif "number of elements" in lowered or "queue count" in lowered:
+            sets.append((name, 0))
+        elif "front element" in lowered or "end of queue" in lowered:
+            sets.append((name, 0))
+        elif "queue mutex counter" in lowered:
+            sets.append((name, 0))
+        elif "element value" in lowered or "stored element" in lowered:
+            sets.append((name, 1234))
+        elif "queue instance reference" in lowered:
+            sets.append((name, "queue"))
+        elif "element reference" in lowered:
+            sets.append((name, "element"))
+        elif "queue mutex" in lowered:
+            sets.append((name, "mutex"))
+    return sets
+
+
+def _seed_case_verifies(dd_rows: list[DDRow], behaviors: list[RequirementBehavior]) -> list[tuple[str, object, object | None]]:
+    del behaviors
+    verifies: list[tuple[str, object, object | None]] = []
+    for row in dd_rows:
+        name = row.verification_identifier or row.name
+        lowered = name.lower()
+        if "push operation status" in lowered:
+            verifies.append((name, "QUEUE_SUCCESS", None))
+        elif "number of elements in the queue" in lowered or "queue count" in lowered:
+            verifies.append((name, 1, None))
+        elif "end of queue" in lowered:
+            verifies.append((name, 1, None))
+        elif "mutex try lock utility is called" in lowered:
+            verifies.append((name, True, None))
+        elif "mutex lock utility is called" in lowered:
+            verifies.append((name, False, None))
+        elif "mutex unlock utility is called" in lowered:
+            verifies.append((name, True, None))
+        elif "log a non-severe fault is called" in lowered:
+            verifies.append((name, False, None))
+        elif "stored element" in lowered or "element value" in lowered:
+            verifies.append((name, 1234, None))
+    return verifies
 
 
 def write_text(path: Path, content: str) -> Path:

@@ -193,6 +193,8 @@ class VerificationUIHandler(BaseHTTPRequestHandler):
         proof_conclusion = html.escape(str(proof.get("conclusion", ""))) if proof else ""
         learning_summary = html.escape(str(last_result.get("learning_summary_text", ""))) if isinstance(last_result, dict) else ""
         learning_status_value = str(last_result.get("learning_status", "")) if isinstance(last_result, dict) else ""
+        evidence_status_value = str(last_result.get("evidence_status", "")) if isinstance(last_result, dict) else ""
+        evidence_summary_value = html.escape(str(last_result.get("evidence_summary", ""))) if isinstance(last_result, dict) else ""
         coverage = proof.get("coverage", []) if proof else []
         test_results = proof.get("test_results", {}) if proof else {}
         review_decision_summary = ""
@@ -313,14 +315,20 @@ class VerificationUIHandler(BaseHTTPRequestHandler):
                     <p>{proof_summary or "Run the pipeline to generate a proof report."}</p>
                   </div>
                 </div>
+                <div class="subgrid">
+                  <div class="subpanel">
+                    <h3>Evidence Gate</h3>
+                    <p>{html.escape(evidence_status_value or "unknown")} {evidence_summary_value}</p>
+                  </div>
+                  <div class="subpanel">
+                    <h3>Learning Agent</h3>
+                    <p>{learning_summary or "Learning memory will be recorded from verified, blocked, or failed runs."}</p>
+                    <p class="muted">Status: {html.escape(learning_status_value or "not recorded")}</p>
+                  </div>
+                </div>
                 <div class="subpanel full">
                   <h3>Conclusion</h3>
                   <p>{proof_conclusion or "The evidence package will appear here after execution."}</p>
-                </div>
-                <div class="subpanel full">
-                  <h3>Learning Agent</h3>
-                  <p>{learning_summary or "Learning memory will be recorded from verified, blocked, or failed runs."}</p>
-                  <p class="muted">Status: {html.escape(learning_status_value or "not recorded")}</p>
                 </div>
               </section>
             """

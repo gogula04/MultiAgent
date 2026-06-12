@@ -7,7 +7,8 @@ flowchart TD
   A[Input: Requirement ID / Name / Source Snippet] --> B[Requirement Intake Agent]
 
   B --> C[Repo Discovery Agent]
-  C --> D[Requirement Parsing Agent]
+  C --> C1[Repo Evidence Retrieval / RAG Gate]
+  C1 --> D[Requirement Parsing Agent]
   D --> E[Source + Dictionary Mapping Agent]
 
   E --> F[Verification Strategy Agent]
@@ -62,15 +63,16 @@ The system is organized as a strict verification pipeline:
 
 1. Intake the requirement ID, name, or source snippet.
 2. Discover the repository evidence needed to verify it.
-3. Parse the requirement text and extract bolded terms.
-4. Map source terms, dictionaries, and verification fields.
-5. Choose the verification mode.
-6. Generate draft artifacts.
-7. Present a human review gate.
-8. Execute the approved verification package.
-9. Collect logs, coverage, and evidence.
-10. Report proof or triage failures with a classification.
-11. Record the run in the learning memory store for future retrieval and improvement.
+3. Run the evidence retrieval / RAG gate and block if no reusable example evidence exists.
+4. Parse the requirement text and extract bolded terms.
+5. Map source terms, dictionaries, and verification fields.
+6. Choose the verification mode using repository evidence.
+7. Generate draft artifacts from existing repo patterns.
+8. Present a human review gate.
+9. Execute the approved verification package.
+10. Collect logs, coverage, and evidence.
+11. Report proof or triage failures with a classification.
+12. Record the run in the learning memory store for future retrieval and improvement.
 
 ## Mode Behavior
 
@@ -85,6 +87,16 @@ The system is organized as a strict verification pipeline:
 - **Manual**
   - Used when the verification must be driven directly from RVSTest vectors.
   - Produces manual RVSTest procedures and supporting notes.
+
+## Retrieval / RAG Gate
+
+The pipeline now includes an evidence-first retrieval layer before artifact generation.
+
+- Prefers same-function and same-module examples from the repo
+- Reuses verified DD, RVSTest, and Python patterns as source of truth
+- Blocks when no reusable evidence exists
+- Avoids generic smoke-case generation unless the repo already uses that style
+- Treats Poolside as a reasoning layer over retrieved evidence, not as a source of invented structure
 
 ## Learning Agent
 

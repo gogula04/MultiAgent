@@ -86,6 +86,10 @@ def main(argv: list[str] | None = None) -> int:
                 "status": result.get("review_status"),
                 "notes": result.get("review_notes"),
             },
+            "evidence": {
+                "status": result.get("evidence_status"),
+                "summary": result.get("evidence_summary"),
+            },
             "learning": {
                 "status": result.get("learning_status"),
                 "summary": result.get("learning_summary_text"),

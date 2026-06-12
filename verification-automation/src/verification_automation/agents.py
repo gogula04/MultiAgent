@@ -32,6 +32,7 @@ from .repo_scan import RepoDiscovery, scan_repository
 from .state import VerificationState
 from .coverage import analyze_verification_coverage
 from .learning import learn_from_run
+from .rag import build_evidence_bundle
 from .requirement_resolver import resolve_requirement
 
 
@@ -103,6 +104,13 @@ def discover_repository(state: VerificationState, config: AppConfig) -> Verifica
     )
     keywords = [req.identifier, *req.text.split()[:8], *req.source_snippet.split()[:8]]
     discovery = scan_repository(config.repo_root, keywords=keywords)
+    retrieval = build_evidence_bundle(
+        config.repo_root,
+        req,
+        discovery.requirement_files + discovery.source_files + discovery.dictionary_files + discovery.test_files + discovery.harness_files,
+        resolved_requirement=state.get("resolved_requirement", {}),
+        output_dir=Path(state.get("output_dir", config.repo_root / "artifacts")),
+    )
     state["discovered_files"] = [
         asdict(item)
         for item in (
@@ -111,12 +119,49 @@ def discover_repository(state: VerificationState, config: AppConfig) -> Verifica
             + discovery.dictionary_files
             + discovery.test_files
             + discovery.harness_files
-            + discovery.closest_examples
         )
     ]
+    state["retrieval_hits"] = [asdict(item) for item in retrieval.hits]
+    state["evidence_bundle"] = retrieval.to_dict()
+    state["evidence_status"] = "ready" if retrieval.supports_generation else "blocked"
+    state["evidence_summary"] = retrieval.summary
+    if retrieval.same_function_hits or retrieval.same_module_hits:
+        evidence_examples = [
+            DiscoveredFile(
+                path=item.path,
+                kind=item.kind,
+                relevance=item.score,
+                notes=item.reason,
+                excerpt=item.excerpt,
+                source=item.source,
+            )
+            for item in retrieval.same_function_hits + retrieval.same_module_hits
+        ]
+        state["discovered_files"].extend(asdict(item) for item in evidence_examples)
     state.setdefault("logs", []).append(
         f"Repository discovery found {len(state['discovered_files'])} candidate files."
     )
+    state["logs"].append(f"Retrieval summary: {retrieval.summary}")
+    if not retrieval.supports_generation:
+        reason = retrieval.blocking_reason or "Insufficient repository evidence for generation."
+        state["status"] = "blocked"
+        state["review_status"] = "not reviewed"
+        state["review_notes"] = reason
+        state["review_decision"] = {
+            "is_safe": False,
+            "risk_score": 10,
+            "summary": reason,
+            "suggested_fix": "Use a repo that contains matching requirements, source, dictionary, and verified example evidence.",
+            "tags": ["blocked", "evidence", "repository"],
+        }
+        state["proof_report"] = {
+            "summary": "No proof generated.",
+            "conclusion": reason,
+            "coverage": [],
+            "test_results": {},
+        }
+        state.setdefault("unresolved", []).append(reason)
+        state.setdefault("manual_review", []).append(reason)
     return state
 
 
@@ -154,6 +199,7 @@ def select_strategy(state: VerificationState, model: ModelAdapter) -> Verificati
         source_snippet=state.get("source_snippet", ""),
     )
     override = (state.get("mode_override") or "").strip().lower()
+    evidence_bundle = state.get("evidence_bundle", {})
     if override in {"direct", "hybrid", "manual"}:
         mode = override.capitalize()
         state["mode"] = mode
@@ -165,17 +211,20 @@ def select_strategy(state: VerificationState, model: ModelAdapter) -> Verificati
         }
         state.setdefault("logs", []).append(f"Verification mode overridden to: {mode}.")
         return state
-    text = " ".join([req.identifier, req.text, req.source_snippet]).lower()
-    has_harness = any(item["kind"] == "harness" for item in state.get("discovered_files", []))
-    has_pointer_terms = any(term in text for term in ("pointer", "null", "reference", "output", "struct", "mutex", "lock", "queue"))
-    has_helper_terms = any(term in text for term in ("stub", "helper", "lognonseverefault", "mutextrylock", "mutexlock", "mutexunlock"))
-    has_manual_hint = any(term in text for term in ("manual", "vector", "procedure", "rvstest"))
-    if has_manual_hint and has_harness:
-        mode = "Manual"
-    elif has_harness or has_helper_terms or has_pointer_terms:
-        mode = "Hybrid"
+    if isinstance(evidence_bundle, dict) and evidence_bundle.get("recommended_mode"):
+        mode = str(evidence_bundle["recommended_mode"])
     else:
-        mode = "Direct"
+        text = " ".join([req.identifier, req.text, req.source_snippet]).lower()
+        has_harness = any(item["kind"] == "harness" for item in state.get("discovered_files", []))
+        has_pointer_terms = any(term in text for term in ("pointer", "null", "reference", "output", "struct", "mutex", "lock", "queue"))
+        has_helper_terms = any(term in text for term in ("stub", "helper", "lognonseverefault", "mutextrylock", "mutexlock", "mutexunlock"))
+        has_manual_hint = any(term in text for term in ("manual", "vector", "procedure", "rvstest"))
+        if has_manual_hint and has_harness:
+            mode = "Manual"
+        elif has_harness or has_helper_terms or has_pointer_terms:
+            mode = "Hybrid"
+        else:
+            mode = "Direct"
     state["mode"] = mode
     state["artifact_plan"] = {
         "mode": mode,
@@ -183,7 +232,12 @@ def select_strategy(state: VerificationState, model: ModelAdapter) -> Verificati
         "needs_rvstest": mode in {"Hybrid", "Manual"},
         "needs_python": mode in {"Direct", "Hybrid"},
     }
-    state.setdefault("logs", []).append(f"Selected verification mode: {mode}.")
+    if evidence_bundle:
+        state.setdefault("logs", []).append(
+            f"Selected verification mode: {mode} using evidence bundle confidence {evidence_bundle.get('confidence', 0)}."
+        )
+    else:
+        state.setdefault("logs", []).append(f"Selected verification mode: {mode}.")
     return state
 
 

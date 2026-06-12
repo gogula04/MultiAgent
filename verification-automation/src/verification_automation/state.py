@@ -23,6 +23,11 @@ class VerificationState(TypedDict, total=False):
     related_requirements: list[str]
 
     discovered_files: list[dict]
+    retrieval_hits: list[dict]
+    evidence_bundle: dict
+    evidence_status: str
+    evidence_summary: str
+    same_module_terms: list[str]
     behaviors: list[dict]
     mappings: list[dict]
     dd_rows: list[dict]

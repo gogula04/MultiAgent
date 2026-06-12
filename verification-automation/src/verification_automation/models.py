@@ -19,6 +19,8 @@ class DiscoveredFile:
     kind: str
     relevance: float = 0.0
     notes: str = ""
+    excerpt: str = ""
+    source: str = "repo"
 
 
 @dataclass(slots=True)

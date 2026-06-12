@@ -4,7 +4,8 @@ Multi-agent verification automation for HLT and LLT workflows.
 
 This project is designed to verify software requirements end to end using a
 repo-aware multi-agent pipeline. It scans your company repository, resolves the
-requirement text, maps bolded requirement terms to source and verification
+requirement text, retrieves reusable evidence with a retrieval-augmented
+verification gate, maps bolded requirement terms to source and verification
 artifacts, selects the right verification mode, generates drafts, waits for
 review, executes tests, learns from each run, and produces evidence.
 
@@ -14,18 +15,21 @@ The tool is built around a strict verification workflow:
 
 1. Intake a requirement ID, name, or source snippet.
 2. Discover repo evidence for the requirement.
-3. Parse the requirement and extract bolded terms.
-4. Map requirement terms to source, dictionaries, and verification data.
-5. Select one of three verification modes:
+3. Run the retrieval / RAG gate and prefer same-function or same-module
+   verified examples.
+4. Parse the requirement and extract bolded terms.
+5. Map requirement terms to source, dictionaries, and verification data using
+   repository evidence as the source of truth.
+6. Select one of three verification modes:
    - Direct
    - Hybrid
    - Manual
-6. Generate draft verification artifacts.
-7. Present a human review gate.
-8. Execute approved drafts.
-9. Collect logs, coverage, and test evidence.
-10. Produce proof and traceability output.
-11. Record the run in the learning memory store so future runs can reuse good
+7. Generate draft verification artifacts.
+8. Present a human review gate.
+9. Execute approved drafts.
+10. Collect logs, coverage, and test evidence.
+11. Produce proof and traceability output.
+12. Record the run in the learning memory store so future runs can reuse good
     examples and failure patterns.
 
 ## Supported Verification Modes
@@ -62,6 +66,8 @@ It typically generates:
 - Bolded-term extraction from requirement text
 - Source + dictionary mapping into verification artifacts
 - Strict blocking when a requirement cannot be resolved
+- Evidence-first retrieval / RAG gate that blocks when no reusable example
+  evidence exists
 - Draft artifact generation with a human review gate
 - Execution and proof generation for approved drafts
 - Failure triage with classification for setup, mapping, harness, source, ambiguity, and coverage gaps
@@ -103,6 +109,8 @@ The tool does not fabricate verification results.
 - If the requirement is not found, the run blocks.
 - If the repo root is wrong, the run blocks.
 - If there is not enough evidence to verify the requirement, the run blocks.
+- If there are no same-function or same-module verified examples, the run
+  blocks instead of inventing a generic smoke case.
 - If review is enabled and the draft is rejected, the workflow returns to draft generation.
 
 ## Repository Layout Assumptions

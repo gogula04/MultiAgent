@@ -89,10 +89,24 @@ class VerificationOrchestrator:
             )
             return learn(state, artifact_dir)
         state = discover_repository(state, self.config)
+        if state.get("status") == "blocked":
+            state = self._blocked_state(
+                state,
+                state.get("review_notes", "Insufficient repository evidence for generation."),
+                artifact_dir,
+            )
+            return learn(state, artifact_dir)
         state = parse_requirement(state, model)
         state = map_source_and_dictionaries(state, model)
         state = select_strategy(state, model)
         state = build_dd(state, model)
+        if not state.get("dd_rows"):
+            state = self._blocked_state(
+                state,
+                "Repository evidence did not produce DD mappings, so generic verification artifacts are disabled.",
+                artifact_dir,
+            )
+            return learn(state, artifact_dir)
         state = build_setup_and_tests(state, self.config)
         state = write_outputs(state, artifact_dir)
         state = review_drafts(state, model, self.config)

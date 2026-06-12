@@ -71,6 +71,9 @@ def build_graph(config: AppConfig):
 
     graph.add_node("blocked", lambda state: state)
     graph.add_edge("blocked", "learn")
+    def discover_route(state: dict) -> str:
+        return "blocked" if state.get("status") == "blocked" else "parse"
+
     graph.add_conditional_edges(
         "resolve",
         resolve_route,
@@ -79,7 +82,14 @@ def build_graph(config: AppConfig):
             "blocked": "blocked",
         },
     )
-    graph.add_edge("discover", "parse")
+    graph.add_conditional_edges(
+        "discover",
+        discover_route,
+        {
+            "parse": "parse",
+            "blocked": "blocked",
+        },
+    )
     graph.add_edge("parse", "map")
     graph.add_edge("map", "strategy")
     graph.add_edge("strategy", "dd")
@@ -91,11 +101,19 @@ def build_graph(config: AppConfig):
             return "manual_builder"
         return "direct_builder"
 
-    graph.add_conditional_edges("dd", choose_mode, {
-        "direct_builder": "direct_builder",
-        "hybrid_builder": "hybrid_builder",
-        "manual_builder": "manual_builder",
-    })
+    def dd_route(state: dict) -> str:
+        return "blocked" if not state.get("dd_rows") else choose_mode(state)
+
+    graph.add_conditional_edges(
+        "dd",
+        dd_route,
+        {
+            "blocked": "blocked",
+            "direct_builder": "direct_builder",
+            "hybrid_builder": "hybrid_builder",
+            "manual_builder": "manual_builder",
+        },
+    )
     graph.add_edge("direct_builder", "write_artifacts")
     graph.add_edge("hybrid_builder", "write_artifacts")
     graph.add_edge("manual_builder", "write_artifacts")

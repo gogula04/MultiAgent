@@ -1,4 +1,4 @@
-"""Model/provider abstraction with a local fallback."""
+"""Model/provider abstraction with an evidence-aware local adapter."""
 
 from __future__ import annotations
 
@@ -49,7 +49,8 @@ class ModelAdapter:
     """A tiny interface used by the agents.
 
     The production path can use LangChain/OpenAI-compatible Poolside.
-    The local fallback keeps the workflow runnable on a laptop without credentials.
+    The local adapter keeps the workflow runnable on a laptop without credentials
+    while still preferring repository evidence over invented structure.
     """
 
     def analyze_requirement(self, req: RequirementInput, files: list[DiscoveredFile]) -> list[RequirementBehavior]:
@@ -78,12 +79,21 @@ class LocalFallbackModel(ModelAdapter):
         lines = _split_requirement_text(text)
         joined = " ".join(lines).lower()
         bold_terms = _extract_bold_terms(text)
+        evidence_terms = _evidence_terms_from_files(files)
         if bold_terms:
             behaviors.append(
                 RequirementBehavior(
                     label="Highlighted requirement terms",
                     description="Track bolded requirement terms from the resolved requirement text.",
                     terms=bold_terms[:10],
+                )
+            )
+        if evidence_terms:
+            behaviors.append(
+                RequirementBehavior(
+                    label="Repository evidence pattern",
+                    description="Reuse the closest verified repository example as the source of truth.",
+                    terms=evidence_terms[:10],
                 )
             )
         if any(tok in joined for tok in ("null", "pointer", "reference")):
@@ -99,16 +109,15 @@ class LocalFallbackModel(ModelAdapter):
         for line in lines:
             if line and len(behaviors) < 5 and ("shall" in line.lower() or "when" in line.lower()):
                 behaviors.append(RequirementBehavior(label=line[:64], description=line, terms=_extract_terms(line)))
-        if not behaviors:
-            keywords = _extract_terms(joined)[:5]
-            behaviors.append(RequirementBehavior(label="Primary behavior", description="Verify the main requirement path.", terms=keywords))
         return behaviors
 
     def map_requirement(self, req: RequirementInput, behaviors: list[RequirementBehavior], files: list[DiscoveredFile]) -> list[MappingRow]:
-        source_term = files[0].path if files else "unresolved_source"
+        source_term = _best_source_file(files)
         rows: list[MappingRow] = []
         req_terms = _merge_terms(_extract_bold_terms(req.text or ""), _extract_terms(req.text or req.identifier))
-        behavior_cycle = behaviors or [RequirementBehavior(label="Primary behavior", description=req.text or req.identifier, terms=req_terms)]
+        behavior_cycle = behaviors or []
+        if not req_terms or not behavior_cycle or source_term == "unresolved_source":
+            return []
         for index, term in enumerate(req_terms[:12]):
             behavior = behavior_cycle[index % len(behavior_cycle)]
             rows.append(
@@ -146,25 +155,15 @@ class LocalFallbackModel(ModelAdapter):
                 )
             )
         if not rows:
-            rows.append(
-                DDRow(
-                    requirement_name=req.identifier,
-                    verification_identifier=req.identifier,
-                    element_type="argument",
-                    base_data_type="pointer.void" if "pointer" in (req.text + req.source_snippet).lower() else "void",
-                    leaf_data_type="void",
-                    name=term_to_dd(req.identifier),
-                    status="new",
-                    source_mapping="requirement -> source",
-                    purpose="Primary verification mapping.",
-                )
-            )
+            return []
         return rows
 
     def build_coverage(self, req: RequirementInput, behaviors: list[RequirementBehavior], mode: str) -> list[CoverageItem]:
+        if not behaviors:
+            return []
         items = [
             CoverageItem(item="Requirement trace coverage", status="covered"),
-            CoverageItem(item="Primary behavior coverage", status="covered"),
+            CoverageItem(item="Repository example coverage", status="covered"),
             CoverageItem(item="Boundary / robustness coverage", status="covered" if any("Boundary" in b.label for b in behaviors) else "partial"),
             CoverageItem(item="Fault / null coverage", status="covered" if any("Fault" in b.label or "Null" in b.label for b in behaviors) else "partial"),
             CoverageItem(item="Branch / MC/DC coverage", status="covered" if mode != "Direct" else "partial"),
@@ -234,6 +233,25 @@ def _extract_bold_terms(text: str) -> list[str]:
         seen.add(key)
         result.append(term)
     return result
+
+
+def _evidence_terms_from_files(files: list[DiscoveredFile]) -> list[str]:
+    terms: list[str] = []
+    for file in files:
+        if file.excerpt:
+            terms.extend(_extract_terms(file.excerpt))
+        if file.notes:
+            terms.extend(_extract_terms(file.notes))
+        terms.extend(_extract_terms(file.path))
+    return _merge_terms(terms)
+
+
+def _best_source_file(files: list[DiscoveredFile]) -> str:
+    source_candidates = [file for file in files if file.kind in {"source", "test", "harness"}]
+    if source_candidates:
+        source_candidates.sort(key=lambda item: (item.relevance, len(item.path)), reverse=True)
+        return source_candidates[0].path
+    return "unresolved_source"
 
 
 def _merge_terms(*groups: list[str]) -> list[str]:
