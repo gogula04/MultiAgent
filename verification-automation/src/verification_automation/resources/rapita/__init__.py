@@ -1,0 +1,1 @@
+"""Rapita resource bundle."""

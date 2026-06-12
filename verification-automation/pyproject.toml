@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "verification-automation"
+version = "0.1.0"
+description = "Multi-agent verification automation for HLT and LLT workflows using LangChain and Poolside-compatible orchestration."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "langchain>=0.3.0",
+  "langchain-openai>=0.2.0",
+  "langgraph>=0.2.0",
+]
+
+[project.scripts]
+verification-automation = "verification_automation.cli:main"
+verification-automation-web = "verification_automation.web_app:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"verification_automation.resources.rapita" = ["*.xml", "*.md"]

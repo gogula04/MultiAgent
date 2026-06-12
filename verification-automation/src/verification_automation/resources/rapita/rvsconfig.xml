@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rvsconfig>
+  <version>27</version>
+  <project>
+    <project-name>rapitest</project-name>
+    <languages>c cpp</languages>
+    <environment>
+      <env-variable env-variable-name="IO_CFG_PATH">${{config-folder}}../../../../requirements/data_dictionary/</env-variable>
+      <env-variable env-variable-name="TESTS_FOLDER">${{tests-folder}}</env-variable>
+      <env-variable env-variable-name="PROJECT_NAME">${{project-name}}</env-variable>
+      <env-variable env-variable-name="SIDESTRAP">1</env-variable>
+      <path-variable>${{install-path}}bin $((PATH)) ${{install-path}}auxd/rvsenv/usr/bin ${{install-path}}auxd/x64/gnat-gpl-wrapped/bin</path-variable>
+    </environment>
+    <integration-recipes>
+      <integration-recipe integration-recipe-name="validate_test">
+        <recipe-script>${{rvs-scripts-folder}}recipes/static_build.js</recipe-script>
+        <recipe-stages>build</recipe-stages>
+      </integration-recipe>
+    </integration-recipes>
+    <installation>
+      <last-rvs-version>3.24 (Aero)</last-rvs-version>
+    </installation>
+  </project>
+
+  <integrations>
+    <integration integration-name="linux-code_coverage">
+      <testing-framework-mode>managed</testing-framework-mode>
+      <integration-strategy>wrapper</integration-strategy>
+      <analysis-ref>code_coverage</analysis-ref>
+      <target-ref>linux</target-ref>
+      <generate-rvd-method>managed</generate-rvd-method>
+      <collection-method>map</collection-method>
+      <data-files>
+        <data-file>
+          <file-names>${{config-folder}}../../../rvs_map.bin</file-names>
+        </data-file>
+      </data-files>
+      <export-ref>linux-coverage</export-ref>
+      <entry-points>"in file '${{config-folder}}../../../../verification/source/src/verif_entry.cpp' at function main() return int"</entry-points>
+      <code-injection>
+        <lazy-injection>false</lazy-injection>
+      </code-injection>
+      <scripts>
+        <export-working-folder>${{results-folder}}</export-working-folder>
+        <export-posthook>${{scripts-folder}}add_testfile_data.py</export-posthook>
+        <semantic-script>${{scripts-folder}}semantic_layer.js</semantic-script>
+      </scripts>
+    </integration>
+
+    <integration integration-name="lynxos-code_coverage">
+      <testing-framework-mode>managed</testing-framework-mode>
+      <integration-strategy>wrapper</integration-strategy>
+      <analysis-ref>code_coverage</analysis-ref>
+      <target-ref>lynxos</target-ref>
+      <generate-rvd-method>managed</generate-rvd-method>
+      <collection-method>map</collection-method>
+      <data-files>
+        <data-file>
+          <file-names>${{config-folder}}../../../rvs_map.bin</file-names>
+        </data-file>
+      </data-files>
+      <export-ref>lynxos-coverage</export-ref>
+      <entry-points>"in file '${{config-folder}}../../../../verification/source/src/verif_entry.cpp' in function main() return int"</entry-points>
+      <code-injection>
+        <inline-library-injection-enabled>true</inline-library-injection-enabled>
+        <inline-library-locations>
+          <inline-library-location inline-library-location-name="rvslib">
+            <inject-points>"before function main() return int"</inject-points>
+            <target-files-pattern>*.c;*.cpp</target-files-pattern>
+          </inline-library-location>
+        </inline-library-locations>
+        <lazy-injection>false</lazy-injection>
+      </code-injection>
+      <scripts>
+        <export-working-folder>${{results-folder}}</export-working-folder>
+        <export-posthook>${{scripts-folder}}add_testfile_data.py</export-posthook>
+        <semantic-script>${{scripts-folder}}semantic_layer.js</semantic-script>
+      </scripts>
+    </integration>
+  </integrations>
+
+  <analyses>
+    <analysis analysis-name="code_coverage">
+      <analysis-tasks>coverage</analysis-tasks>
+      <instr-profile>COV_178_DAL_B</instr-profile>
+    </analysis>
+  </analyses>
+
+  <targets>
+    <target target-name="linux">
+      <commandlines>
+        <clean-commandline>${{config-folder}}../../../../software/build/clean.sh --profile linux --debug</clean-commandline>
+        <build-commandline>${{config-folder}}../../../../software/build/build.sh --profile linux --debug --variant rvs</build-commandline>
+        <working-folder>${{config-folder}}../../../</working-folder>
+        <run-commandline>${{scripts-folder}}loop_run.sh out/foundation_and_framework_app</run-commandline>
+      </commandlines>
+      <compiler-wrapper>
+        <wrapper wrapper-name="gcc_wrap">
+          <rsp-enabled>false</rsp-enabled>
+          <path-to-original>$((RVS_ORIG_C_COMPILER_PATH))</path-to-original>
+        </wrapper>
+        <wrapper wrapper-name="g++_wrap">
+          <rsp-enabled>false</rsp-enabled>
+          <path-to-original>$((RVS_ORIG_CXX_COMPILER_PATH))</path-to-original>
+        </wrapper>
+      </compiler-wrapper>
+      <instrumentation>
+        <c>
+          <c-extension>${{scripts-folder}}GCC.cext</c-extension>
+          <c-fix-line-directives notes="This helps gdb detect the correct line when debugging">remove</c-fix-line-directives>
+        </c>
+        <cpp>
+          <cpp-extension>${{scripts-folder}}G++.cext</cpp-extension>
+          <cpp-fix-line-directives notes="This helps gdb detect the correct line when debugging">remove</cpp-fix-line-directives>
+        </cpp>
+        <overwrite-extensions>true</overwrite-extensions>
+      </instrumentation>
+    </target>
+
+    <target target-name="lynxos">
+      <commandlines>
+        <clean-commandline>${{config-folder}}../../../../software/build/clean.sh --profile lynxos --debug</clean-commandline>
+        <build-commandline>${{config-folder}}../../../../software/build/build.sh --profile lynxos --debug --variant rvs</build-commandline>
+        <working-folder>${{config-folder}}../../../</working-folder>
+        <run-commandline>${{scripts-folder}}loop_run.sh out/foundation_and_framework_app</run-commandline>
+      </commandlines>
+      <instrumentation>
+        <c>
+          <c-extension>${{scripts-folder}}GCC.cext</c-extension>
+          <c-fix-line-directives notes="This helps gdb detect the correct line when debugging">remove</c-fix-line-directives>
+        </c>
+        <cpp>
+          <cpp-extension>${{scripts-folder}}G++.cext</cpp-extension>
+          <cpp-fix-line-directives notes="This helps gdb detect the correct line when debugging">remove</cpp-fix-line-directives>
+        </cpp>
+        <overwrite-extensions>true</overwrite-extensions>
+      </instrumentation>
+      <compiler-wrapper>
+        <wrapper wrapper-name="gcc_wrap">
+          <rsp-enabled>false</rsp-enabled>
+          <path-to-original>$((RVS_ORIG_C_COMPILER_PATH))</path-to-original>
+        </wrapper>
+        <wrapper wrapper-name="g++_wrap">
+          <rsp-enabled>false</rsp-enabled>
+          <path-to-original>$((RVS_ORIG_CXX_COMPILER_PATH))</path-to-original>
+        </wrapper>
+      </compiler-wrapper>
+    </target>
+  </targets>
+
+  <exports>
+    <export export-name="linux-coverage">
+      <export-section>
+        <metric>coverage</metric>
+        <export-format>xml</export-format>
+        <export-file>${{results-folder}}linux-coverage.xml</export-file>
+      </export-section>
+      <export-section>
+        <metric>test</metric>
+        <export-format>junit</export-format>
+        <export-file>${{results-folder}}linux-test.xml</export-file>
+      </export-section>
+      <export-section>
+        <metric>test</metric>
+        <export-format>txt</export-format>
+        <export-file>${{results-folder}}linux-test.txt</export-file>
+      </export-section>
+      <export-section>
+        <metric>test</metric>
+        <export-format>xml</export-format>
+        <export-file>${{results-folder}}linux-test-detailed.xml</export-file>
+      </export-section>
+    </export>
+
+    <export export-name="lynxos-coverage">
+      <export-section>
+        <metric>coverage</metric>
+        <export-format>xml</export-format>
+        <export-file>${{results-folder}}lynxos-coverage.xml</export-file>
+      </export-section>
+      <export-section>
+        <metric>test</metric>
+        <export-format>junit</export-format>
+        <export-file>${{results-folder}}lynxos-test.xml</export-file>
+      </export-section>
+      <export-section>
+        <metric>test</metric>
+        <export-format>txt</export-format>
+        <export-file>${{results-folder}}lynxos-test.txt</export-file>
+      </export-section>
+      <export-section>
+        <metric>test</metric>
+        <export-format>xml</export-format>
+        <export-file>${{results-folder}}lynxos-test-detailed.xml</export-file>
+      </export-section>
+    </export>
+  </exports>
+
+  <testframework>
+    <tests-folder>${{config-folder}}../../../test-procedures</tests-folder>
+  </testframework>
+</rvsconfig>
