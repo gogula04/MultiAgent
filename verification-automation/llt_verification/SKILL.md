@@ -8,7 +8,7 @@ metadata:
 # LLT Verification
 
 Use this skill when the user asks to verify a requirement, especially with a prompt like `verify requirement REQID`.
-Load the detailed flow and guardrails only after activation.
+This skill is the trigger and guardrail layer. The execution engine lives in `super_bot.py`, the provider backend is optional, and the detailed flow lives in [references/flow.md](references/flow.md).
 
 ## What To Do
 
@@ -30,15 +30,17 @@ Load the detailed flow and guardrails only after activation.
 
 ## Entry Points
 
+- Super bot: `python super_bot.py FAF-LLR-401`
 - Full flow: `python autonomous_verifier.py FAF-LLR-401`
 - Inspect/testability: `python llt_verification.py --step2 FAF-LLR-401`
 - RBTCA only: `python llt_verification.py --generate-rbtca FAF-LLR-401`
 - Test only: `python llt_verification.py --generate-test FAF-LLR-401`
 - Batch coverage: `python batch_verify.py`
+- Poolside wiring: set `POOLSIDE_BASE_URL`, `POOLSIDE_API_KEY`, `POOLSIDE_AGENT_MODEL`, and optionally `POOLSIDE_AGENT_NAME` before running the super bot
 
 ## Workflow
 
-1. Follow [references/flow.md](references/flow.md) for the end-to-end sequence.
+1. Follow [references/flow.md](references/flow.md) for architecture and execution flow.
 2. Use [references/verification-rules.md](references/verification-rules.md) for evidence, blocker, and implementation-read guardrails.
 3. Use [references/test-selection.md](references/test-selection.md) for Direct vs Hybrid selection and case choice.
 4. Use [references/trigger-tests.md](references/trigger-tests.md) to validate activation against positive and near-miss prompts.

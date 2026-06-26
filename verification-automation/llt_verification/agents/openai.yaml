@@ -1,7 +1,7 @@
 interface:
   display_name: "LLT Verification"
   short_description: "Verify requirements end to end from `verify requirement REQID`"
-  default_prompt: "Use $llt-verification when the user says `verify requirement REQID` or provides requirement text. Follow the skill flow, generate RBTCA and pytest_smart tests, run them, debug failures, and return proof."
+  default_prompt: "Use $llt-verification when the user says `verify requirement REQID` or provides requirement text. Follow the bot pipeline, generate RBTCA and pytest_smart tests, run them, debug failures, and return proof."
 
 policy:
   allow_implicit_invocation: true

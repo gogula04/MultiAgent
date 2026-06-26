@@ -38,7 +38,7 @@ class RequirementEvaluator:
                 ("requirements", "llr"),
                 ("LLR",),
             ],
-            fallback_to_root=True,
+            fallback_to_root=False,
         )
         self.data_dict_dirs = candidate_dirs(
             self.workspace_root,
@@ -398,6 +398,15 @@ class RequirementEvaluator:
 
         return inputs, outputs
 
+    def extract_bold_terms(self, description: str) -> List[str]:
+        """Extract bolded terms that should be reused for dictionary and source searches."""
+        terms = []
+        for term in re.findall(r"\*\*([^*]+?)\*\*", description):
+            cleaned = term.strip()
+            if cleaned and cleaned not in terms:
+                terms.append(cleaned)
+        return terms
+
     def extract_component_name(self, description: str) -> Optional[str]:
         """Extract component name from requirement description."""
         match = re.search(
@@ -631,6 +640,7 @@ class RequirementEvaluator:
             self.source_terms = {}
 
         classification = self.classify_requirement(requirement_description)
+        bold_terms = self.extract_bold_terms(requirement_description)
         inputs, outputs = self.extract_variables(requirement_description)
         expressions = self.extract_expressions(requirement_description)
 
@@ -671,6 +681,7 @@ class RequirementEvaluator:
 
         return {
             "classification": classification,
+            "bold_terms": bold_terms,
             "testable": can_write_tests,
             "inputs": inputs,
             "outputs": outputs,
@@ -1146,12 +1157,13 @@ class RequirementEvaluator:
         req_id: str,
         description: str,
         component_name: Optional[str] = None,
+        fixture_component: Optional[str] = None,
     ) -> str:
         """Generate Python test case file content matching RBTCA test cases."""
         _, test_case_map = self.generate_rbtca_yaml(result, req_id)
         inputs = result.get("inputs", [])
         outputs = result.get("outputs", [])
-        effective_component = component_name or self.extract_component_name(description) or req_id
+        effective_component = fixture_component or component_name or self.extract_component_name(description) or req_id
 
         lines = [
             "# Item ID: " + req_id,

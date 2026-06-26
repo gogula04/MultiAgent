@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime
 from scripts.workspace_utils import candidate_dirs, detect_workspace_root
+from bot.super_bot import run_super_bot
 
 
 class AutonomousVerifier:
@@ -77,95 +78,12 @@ class AutonomousVerifier:
         Main entry point - verify a requirement autonomously.
         """
         self.log(f"Starting autonomous verification for: {req_id_or_desc}")
-
-        from llt_verification import RequirementEvaluator
-
-        evaluator = RequirementEvaluator(str(self.workspace_root))
-
-        is_req_id = bool(re.match(r"FAF-LLR-\d+", req_id_or_desc))
-        if is_req_id:
-            description, req_path = evaluator.find_requirement_by_id(req_id_or_desc)
-            if not description:
-                self.log(f"Requirement {req_id_or_desc} not found", "ERROR")
-                return {"status": "failed", "reason": "Requirement not found"}
-            req_id = req_id_or_desc
-        else:
-            description = req_id_or_desc
-            req_path = None
-            req_id = f"custom-{int(time.time())}"
-
-        self.log(f"Requirement description: {description[:100]}...")
-
-        result = evaluator.evaluate(description, allow_source_reading=False)
-        result["requirement_id"] = req_id
-        if req_path:
-            result["requirement_file"] = str(req_path)
-        result["component_name"] = evaluator.extract_component_name(description)
-
-        if not result.get("testable", False):
-            self.log("First pass did not prove testability; consulting implementation for fallback evidence", "WARNING")
-            fallback_result = evaluator.evaluate(description, allow_source_reading=True)
-            fallback_result["requirement_id"] = req_id
-            if req_path:
-                fallback_result["requirement_file"] = str(req_path)
-            fallback_result["component_name"] = result["component_name"]
-            result = fallback_result
-
-        method_decision = evaluator.make_method_decision(result, result.get("component_name"))
-        result["method_decision"] = method_decision
-        self.log(f"Method decision: {method_decision['selected_method']}")
-        self.log(f"Reason: {method_decision['reason']}")
-
-        if method_decision["selected_method"] == "blocked":
-            self.log("Verification blocked before artifact generation", "WARNING")
-            return {"status": "blocked", "result": result}
-
-        if not result.get("testable", False):
-            self.log("Requirement is not testable", "WARNING")
-            return {"status": "not_testable", "result": result}
-
-        rbtca_content, test_case_map = evaluator.generate_rbtca_yaml(result, req_id)
-        rbtca_file = self.rbtca_dir / f"{req_id}.yaml"
-
-        self.log(f"Generating RBTCA YAML: {rbtca_file}")
-        if not self.dry_run:
-            rbtca_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(rbtca_file, "w") as f:
-                yaml.dump(rbtca_content, f, default_flow_style=False, sort_keys=False)
-            self.generated_files.append(str(rbtca_file))
-        else:
-            self.log(f"DRY RUN: Would create {rbtca_file}")
-
-        test_content = evaluator.generate_test_case_file(
-            result, req_id, description, result.get("component_name")
+        return run_super_bot(
+            req_id_or_desc,
+            workspace_root=str(self.workspace_root),
+            dry_run=self.dry_run,
+            continue_on_failure=self.continue_on_failure,
         )
-        test_file = self.test_cases_dir / f"test_{req_id}.py"
-
-        self.log(f"Generating test case file: {test_file}")
-        if not self.dry_run:
-            test_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(test_file, "w") as f:
-                f.write(test_content)
-            self.generated_files.append(str(test_file))
-        else:
-            self.log(f"DRY RUN: Would create {test_file}")
-
-        if "Placeholder" in test_content or "# TODO" in test_content:
-            self.log(
-                "Generated test contains placeholder values; proceeding to debug loop if needed",
-                "WARNING",
-            )
-
-        self._update_data_dictionaries(evaluator, result, description, req_id)
-
-        test_result = self._run_tests(test_file)
-
-        if test_result.get("status") == "failed" and self.continue_on_failure:
-            test_result = self._debug_and_fix(test_file, evaluator, result, req_id)
-
-        report = self._generate_report(result, test_result, rbtca_file, test_file)
-
-        return report
 
     def _update_data_dictionaries(
         self, evaluator, result: Dict, description: str, req_id: str
