@@ -6,10 +6,20 @@
 - No random elements.
 - No timestamps in generated artifacts.
 - No external state in the generated result.
+- Requirement-only verification is the default operating mode.
+- Implementation/source reads are allowed only with explicit exception approval and must be audit logged.
 - Existing repo examples are style references, not blockers.
 - Do not guess mappings, expected values, or coverage cases.
 - Do not modify production code.
 - Any older prompt bundle used by a removed legacy harness is fallback reference only; use it only when the deterministic requirement extractor leaves gaps in classification, IO variables, expressions, math, or formatting.
+
+## Current System Behavior
+
+- The coordinator-led runtime is multi-agent and RAG-backed.
+- Direct and Hybrid are selected from evidence, not guesswork.
+- Approved runs may be stored as controlled offline learning cases, but only after a passed proof report and approved review.
+- Enterprise queueing is tenant-scoped, RBAC-gated, and approval-gated.
+- Dashboards, metrics, and regression reports are tenant-scoped outputs.
 
 ## Schema Compliance
 
@@ -20,7 +30,7 @@
 
 ## Implementation File Usage
 
-Only read implementation/source files in these cases:
+Only read implementation/source files in these cases, and only after the exception gate is approved:
 
 1. Creating or updating a Direct or Hybrid verification artifact when exact visible constants, literal values, range limits, boundary values, or comparison constraints are needed for test generation.
 2. Debugging a failing generated test or other blocked verification path.

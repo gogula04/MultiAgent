@@ -4,22 +4,22 @@
     {
       "id": 1,
       "prompt": "verify requirement FAF-LLR-401",
-      "expected_output": "The LLT Verification skill activates, locates the requirement, decides Direct or Hybrid from evidence, generates RBTCA and pytest_smart artifacts, runs tests, and returns a proof report."
+      "expected_output": "The requirement-centric coordinator-led verification workflow activates, locates the requirement, decides Direct or Hybrid from evidence, generates RBTCA and pytest_smart artifacts, runs tests, and returns a proof report."
     },
     {
       "id": 2,
       "prompt": "verify requirement FAF-LLR-123 and give me the end-to-end verification proof",
-      "expected_output": "The LLT Verification skill activates and performs the end-to-end verification flow with evidence-backed mapping and execution."
+      "expected_output": "The requirement-centric coordinator-led verification workflow activates and performs the end-to-end verification flow with evidence-backed mapping and execution."
     },
     {
       "id": 3,
       "prompt": "analyze requirement FAF-LLR-401",
-      "expected_output": "The LLT Verification skill should not be the primary activation target."
+      "expected_output": "The requirement-centric coordinator-led verification workflow should not be the primary activation target."
     },
     {
       "id": 4,
       "prompt": "verify my code",
-      "expected_output": "The LLT Verification skill should not activate as the primary skill."
+      "expected_output": "The requirement-centric coordinator-led verification workflow should not activate as the primary workflow."
     }
   ]
 }

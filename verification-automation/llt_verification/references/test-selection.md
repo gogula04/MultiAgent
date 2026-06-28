@@ -1,5 +1,11 @@
 # Test Selection Guide
 
+## Current System Notes
+
+- The selection decision is evidence-driven and made by the coordinator-led runtime.
+- Controlled offline learning may suggest reuse candidates for similar requirements, but it does not override Direct, Hybrid, or Blocked selection.
+- Enterprise queueing, approvals, and dashboards sit around the selection flow and do not change the underlying selection rules.
+
 ## Coverage Goals
 
 - Inputs should cover normal range and robustness cases.

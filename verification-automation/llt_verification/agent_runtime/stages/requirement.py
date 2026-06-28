@@ -21,7 +21,11 @@ class RequirementAgent(BaseStageAgent):
             if located_text:
                 requirement_text = located_text
                 requirement_file = str(located_file) if located_file else None
-        evaluation = self.evaluator.evaluate(requirement_text, allow_source_reading=False, poolside_client=self.poolside)
+        evaluation = self.evaluator.evaluate(
+            requirement_text,
+            allow_source_reading=self.policy.implementation_access_allowed(),
+            poolside_client=self.poolside,
+        )
         payload = {
             "requirement_id": requirement_id,
             "requirement_text": requirement_text,
@@ -33,6 +37,7 @@ class RequirementAgent(BaseStageAgent):
             "types_and_ranges": evaluation["types_and_ranges"],
             "expressions": evaluation["expressions"],
             "legacy_prompt_used": evaluation.get("legacy_prompt_used", []),
+            "extraction_contract": evaluation.get("extraction_contract", {}),
             "component_name": self.evaluator.extract_component_name(requirement_text),
             "status": "completed",
         }

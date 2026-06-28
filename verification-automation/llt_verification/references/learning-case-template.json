@@ -1,0 +1,23 @@
+{
+  "case_id": "<case_id>",
+  "requirement_id": "<requirement_id>",
+  "requirement_text": "<requirement_text>",
+  "selected_method": "<direct|hybrid>",
+  "branch_note": "<branch_note>",
+  "status": "passed",
+  "approved_only": true,
+  "sources": {
+    "requirement_package": {},
+    "evidence_package": {},
+    "normalized_terms_package": {},
+    "analysis_package": {},
+    "strategy_decision": {},
+    "artifact_patch": {},
+    "traceability_result": {},
+    "execution_result": {},
+    "debug_result": {},
+    "review_result": {}
+  },
+  "reuse_hints": [],
+  "generated_at": "<timestamp>"
+}

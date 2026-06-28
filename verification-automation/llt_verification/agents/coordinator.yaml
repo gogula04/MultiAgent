@@ -1,6 +1,6 @@
 # LLT Verification Coordinator
 name: coordinator
-description: Routes validated packages between the peer agents, chooses Direct or Hybrid from evidence, and owns the final proof decision.
+description: Routes validated packages between the multi-agent stages, chooses Direct or Hybrid from evidence, and owns the final proof decision.
 inputs:
   - user_prompt
 outputs:

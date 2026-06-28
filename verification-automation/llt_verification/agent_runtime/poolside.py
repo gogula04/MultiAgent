@@ -1,6 +1,6 @@
-"""Poolside-only client helpers for the LLT agent.
+"""Poolside client helpers for the LLT verification runtime.
 
-The agent talks to Poolside over HTTP using a single configuration path.
+The runtime talks to Poolside over HTTP using a single configuration path.
 No alternate providers or fallback vendor settings are supported here.
 """
 

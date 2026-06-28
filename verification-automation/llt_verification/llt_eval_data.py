@@ -7,6 +7,8 @@ from typing import Dict, List, Optional, Tuple
 
 import yaml_compat as yaml
 
+from agent_runtime.policy import VerificationPolicy
+
 
 class RequirementDataMixin:
     def _load_yaml_file(self, path: Path):
@@ -72,6 +74,32 @@ class RequirementDataMixin:
             return
         bucket[name.lower()] = entry
 
+    def _term_citation(self, entry: Optional[Dict[str, object]]) -> Dict[str, object]:
+        if not entry:
+            return {"source_path": None, "line": None, "citation": None}
+        source_path = entry.get("source_path") or entry.get("source")
+        line = entry.get("source_line") or entry.get("line")
+        if source_path and line:
+            citation = f"{source_path}:{line}"
+        elif source_path:
+            citation = str(source_path)
+        else:
+            citation = None
+        return {"source_path": source_path, "line": line, "citation": citation}
+
+    def _find_text_line(self, text: str, term: str, fallback_keys: Tuple[str, ...] = ()) -> Optional[int]:
+        lower_term = term.lower()
+        for line_no, raw_line in enumerate(text.splitlines(), 1):
+            line = self._strip_source_comments(raw_line).strip()
+            if not line:
+                continue
+            lower_line = line.lower()
+            if lower_term in lower_line:
+                return line_no
+            if fallback_keys and any(f"{key.lower()}:" in lower_line and lower_term in lower_line for key in fallback_keys):
+                return line_no
+        return None
+
     def _extract_source_constants(self, content: str, source_file: Path):
         patterns = [
             re.compile(r"(?m)^\s*#define\s+([A-Za-z_][A-Za-z0-9_]*)\s+(.+?)\s*$"),
@@ -86,6 +114,7 @@ class RequirementDataMixin:
                 if key in seen:
                     continue
                 seen.add(key)
+                line = content.count("\n", 0, match.start()) + 1
                 yield {
                     "name": name,
                     "kind": "constant",
@@ -95,6 +124,9 @@ class RequirementDataMixin:
                     "max": self._parse_source_literal(raw_value).get("max"),
                     "raw_value": raw_value,
                     "source": str(source_file),
+                    "source_path": str(source_file),
+                    "source_line": line,
+                    "citation": f"{source_file}:{line}",
                 }
 
     def _extract_source_constraints(self, content: str, source_file: Path):
@@ -109,7 +141,10 @@ class RequirementDataMixin:
             for match in comparison_pattern.finditer(line):
                 yield {
                     "source": str(source_file),
+                    "source_path": str(source_file),
                     "line": line_no,
+                    "source_line": line_no,
+                    "citation": f"{source_file}:{line_no}",
                     "expression": line.strip(),
                     "lhs": match.group("lhs"),
                     "operator": match.group("op"),
@@ -119,7 +154,10 @@ class RequirementDataMixin:
             for match in case_pattern.finditer(line):
                 yield {
                     "source": str(source_file),
+                    "source_path": str(source_file),
                     "line": line_no,
+                    "source_line": line_no,
+                    "citation": f"{source_file}:{line_no}",
                     "expression": line.strip(),
                     "lhs": "case",
                     "operator": "==",
@@ -146,7 +184,8 @@ class RequirementDataMixin:
         data_rows = rows[1:] if any(header) else rows
         header_l = [h.lower() for h in header]
         is_named = any(k in header_l for k in ("requirementname", "uut name", "verificationidentifier"))
-        for row in data_rows:
+        start_line = 2 if any(header) else 1
+        for offset, row in enumerate(data_rows, start=start_line):
             if not row:
                 continue
             if is_named:
@@ -161,7 +200,7 @@ class RequirementDataMixin:
                     source=source_label or csv_path.name,
                     min_val=values.get("minimum") or values.get("min") or values.get("lower"),
                     max_val=values.get("maximum") or values.get("max") or values.get("upper"),
-                    extra=values,
+                    extra={**values, "source_path": str(csv_path), "source_line": offset, "citation": f"{csv_path}:{offset}"},
                 )
                 enum_values = []
                 for key in ("enumvalues", "enum_values", "allowedvalues", "allowed_values", "validvalues", "valid_values", "choices", "options", "symbols"):
@@ -179,17 +218,23 @@ class RequirementDataMixin:
                         source=source_label or csv_path.name,
                         min_val=row[2].strip() if len(row) > 2 and row[2].strip() else None,
                         max_val=row[3].strip() if len(row) > 3 and row[3].strip() else None,
+                        extra={"source_path": str(csv_path), "source_line": offset, "citation": f"{csv_path}:{offset}"},
                     )
 
     def _load_yaml_terms(self, yaml_path: Path, bucket: Dict, source_label: Optional[str] = None):
         data = self._load_yaml_file(yaml_path)
         if not data:
             return
+        try:
+            raw_text = yaml_path.read_text()
+        except Exception:
+            raw_text = ""
         items = data.values() if isinstance(data, dict) and all(isinstance(v, dict) for v in data.values()) else data if isinstance(data, list) else [data]
         for item in items:
             if isinstance(item, dict):
                 term = item.get("RequirementName") or item.get("uut name") or item.get("uut_name") or item.get("name") or item.get("req_name") or item.get("verificationidentifier") or item.get("VerificationIdentifier")
                 if term:
+                    source_line = self._find_text_line(raw_text, str(term), ("RequirementName", "uut name", "uut_name", "name", "req_name", "verificationidentifier", "VerificationIdentifier"))
                     enum_values = []
                     for key in ("enumValues", "enum_values", "allowedValues", "allowed_values", "validValues", "valid_values", "choices", "options", "symbols"):
                         if item.get(key):
@@ -201,7 +246,7 @@ class RequirementDataMixin:
                         source=source_label or yaml_path.name,
                         min_val=item.get("min") or item.get("minimum"),
                         max_val=item.get("max") or item.get("maximum"),
-                        extra=item,
+                        extra={**item, "source_path": str(yaml_path), "source_line": source_line, "citation": f"{yaml_path}:{source_line}" if source_line else str(yaml_path)},
                     )
                     if "enum" in str(item.get("baseDataType") or item.get("base_data_type_name") or item.get("type") or "").lower() or enum_values:
                         bucket[term.lower()].update({"enum_values": enum_values, "valid_values": enum_values, "type": item.get("baseDataType") or item.get("base_data_type_name") or item.get("type") or "Enumeration"})
@@ -223,6 +268,11 @@ class RequirementDataMixin:
                 self._load_yaml_terms(yaml_path, self.uut_dict_terms, "uut_dictionary.yaml")
 
     def load_source_terms(self):
+        if not VerificationPolicy.from_env().implementation_access_allowed():
+            raise PermissionError(
+                "Implementation-code access is blocked by policy. "
+                "Set LLT_IMPLEMENTATION_READ_APPROVED=1 only after exception approval."
+            )
         self.source_terms = {}
         self.source_constants = []
         self.source_constraints = []
@@ -236,7 +286,7 @@ class RequirementDataMixin:
                         continue
                     for ident in set(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", content)):
                         if len(ident) >= 3:
-                            self._register_source_term(self.source_terms, {"name": ident, "type": "source file", "source": str(source_file), "kind": "symbol"})
+                            self._register_source_term(self.source_terms, {"name": ident, "type": "source file", "source": str(source_file), "source_path": str(source_file), "kind": "symbol"})
                     for constant_entry in self._extract_source_constants(content, source_file):
                         self._register_source_term(self.source_terms, constant_entry)
                         self.source_constants.append(constant_entry)

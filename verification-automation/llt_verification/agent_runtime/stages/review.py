@@ -19,9 +19,14 @@ class ReviewerAgent(BaseStageAgent):
         debug_result: Dict[str, object],
         decision: Dict[str, object],
     ) -> Dict[str, object]:
-        self.evaluator.load_source_terms()
-        source_constants = getattr(self.evaluator, "source_constants", [])
-        source_constraints = getattr(self.evaluator, "source_constraints", [])
+        source_constants = []
+        source_constraints = []
+        if self.policy.implementation_access_allowed():
+            self.evaluator.load_source_terms()
+            source_constants = getattr(self.evaluator, "source_constants", [])
+            source_constraints = getattr(self.evaluator, "source_constraints", [])
+        else:
+            self.state.log("Review stage skipped implementation/source reads due to policy")
         poolside_response = self.poolside.complete(
             "review",
             {

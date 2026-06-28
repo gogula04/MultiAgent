@@ -1,4 +1,4 @@
-"""Shared primitives for LLT peer agents."""
+"""Shared primitives for LLT multi-agent stages."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 from llt_evaluator import RequirementEvaluator
 
 from .message import AgentMessage
+from .policy import VerificationPolicy
 from .state import VerificationRunState
 
 
@@ -28,10 +29,11 @@ class StageContext:
     state: VerificationRunState
     evaluator: RequirementEvaluator
     poolside_client: object
+    policy: VerificationPolicy
 
 
 class BaseStageAgent:
-    """Small base class shared by the peer agents."""
+    """Small base class shared by the multi-agent stages."""
 
     name = "BaseStageAgent"
     stage = "base"
@@ -55,6 +57,10 @@ class BaseStageAgent:
     def poolside(self):
         return self.context.poolside_client
 
+    @property
+    def policy(self) -> VerificationPolicy:
+        return self.context.policy
+
     def emit(
         self,
         status: str,
@@ -73,6 +79,10 @@ class BaseStageAgent:
             next_agent=next_agent,
         )
         self.state.record(message)
+        self.state.log(
+            f"{self.name} [{self.stage}] -> {status}"
+            + (f", next={next_agent}" if next_agent else "")
+        )
         written = self.state.write_json(f"{len(self.state.messages):02d}_{self.stage}.json", message.to_dict())
         self.runtime.generated_files.append(str(written))
         return message

@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from agent_runtime.core import normalize_term
+
 
 class RequirementExtractMixin:
     def _legacy_prompt_dir(self):
@@ -71,6 +73,139 @@ class RequirementExtractMixin:
             merged.append(item)
             seen.add(key)
         return merged
+
+    def _dedupe_preserve_order(self, values):
+        if not values:
+            return []
+        if isinstance(values, str):
+            values = [values]
+        result = []
+        seen = set()
+        for item in values:
+            if isinstance(item, dict):
+                key = json.dumps(item, sort_keys=True, default=str)
+            else:
+                key = str(item).strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            result.append(item)
+        return result
+
+    def _normalize_string_list(self, values: List[str]) -> List[str]:
+        return [str(item).strip() for item in self._dedupe_preserve_order(values) if str(item).strip()]
+
+    def _normalize_types_and_ranges(self, items: List[Dict[str, object]]) -> List[Dict[str, object]]:
+        normalized: List[Dict[str, object]] = []
+        seen = set()
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name", "")).strip()
+            if not name:
+                continue
+            key = name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized_item = {
+                "name": name,
+                "type": str(item.get("type") or item.get("type_hint") or "unknown").strip() or "unknown",
+                "role": str(item.get("role") or "").strip(),
+                "section": str(item.get("section") or "").strip(),
+                "data_source": str(item.get("data_source") or item.get("source") or "requirement text").strip(),
+                "min": item.get("min"),
+                "max": item.get("max"),
+                "valid_values": self._normalize_string_list(item.get("valid_values", [])),
+                "invalid_values": self._normalize_string_list(item.get("invalid_values", [])),
+                "default": item.get("default"),
+                "constraints": self._normalize_string_list(item.get("constraints", [])),
+            }
+            normalized.append(normalized_item)
+        return normalized
+
+    def _normalize_expressions(self, expressions: Dict[str, List[str]]) -> Dict[str, List[str]]:
+        return {
+            key: self._normalize_string_list(expressions.get(key, []))
+            for key in ("conditions", "comparisons", "calculations", "constants", "robustness_cases")
+        }
+
+    def _term_aliases(self, term: str) -> List[str]:
+        text = str(term or "").strip()
+        if not text:
+            return []
+        lowered = text.lower()
+        compact = re.sub(r"[^a-z0-9]+", "", lowered)
+        spaced = re.sub(r"[^a-z0-9]+", " ", lowered).strip()
+        snake = normalize_term(text)
+        variants = [text, lowered, spaced, compact, snake, snake.replace("_", " ")]
+        return self._normalize_string_list(variants)
+
+    def _requirement_signals(self, description: str) -> Dict[str, bool]:
+        lowered = description.lower()
+        return {
+            "math": bool(re.search(r"\b(sum|average|square root|sqrt|sin|cos|tan|exp|power|multiply|divide|add|subtract|calculated|formula|ratio|proportion)\b|[\+\-\*/^]", lowered)),
+            "format": bool(re.search(r"\bformat\b|\bformatted\b|\bleading zeros\b|\bleading spaces\b|\bstring format\b|\bvalid formats?\b", lowered)),
+            "logical": bool(re.search(r"\b(and|or|not|when|if|unless|only if|shall be set|shall be true|shall be false)\b|==|!=|>=|<=|>|<", lowered)),
+        }
+
+    def _needs_classification_fallback(self, classification: str, description: str) -> bool:
+        signals = self._requirement_signals(description)
+        lower_classification = (classification or "").lower()
+        if signals["math"] and "math" not in lower_classification:
+            return True
+        if signals["format"] and "format" not in lower_classification:
+            return True
+        return False
+
+    def _build_extraction_contract(
+        self,
+        requirement_description: str,
+        classification: str,
+        inputs: List[str],
+        outputs: List[str],
+        bold_terms: List[str],
+        types_and_ranges: List[Dict[str, object]],
+        expressions: Dict[str, List[str]],
+        legacy_prompt_used: List[str],
+        notes: List[str],
+    ) -> Dict[str, object]:
+        signals = self._requirement_signals(requirement_description)
+        alias_terms = self._normalize_string_list(inputs + outputs + bold_terms + [item.get("name", "") for item in types_and_ranges if isinstance(item, dict)])
+        aliases = {
+            term: {
+                "normalized": normalize_term(term),
+                "dd_name": f"dd_{normalize_term(term)}",
+                "variants": self._term_aliases(term),
+            }
+            for term in alias_terms
+        }
+        gaps = []
+        if not inputs:
+            gaps.append("inputs")
+        if not outputs:
+            gaps.append("outputs")
+        if not types_and_ranges:
+            gaps.append("types_and_ranges")
+        if signals["math"] and not expressions.get("calculations"):
+            gaps.append("math_expressions")
+        if signals["format"] and not types_and_ranges:
+            gaps.append("format_details")
+        if self._needs_classification_fallback(classification, requirement_description):
+            gaps.append("classification")
+        contract = {
+            "classification": classification,
+            "bold_terms": self._normalize_string_list(bold_terms),
+            "inputs": self._normalize_string_list(inputs),
+            "outputs": self._normalize_string_list(outputs),
+            "types_and_ranges": self._normalize_types_and_ranges(types_and_ranges),
+            "expressions": self._normalize_expressions(expressions),
+            "aliases": aliases,
+            "gaps": self._normalize_string_list(gaps),
+            "legacy_prompt_used": self._normalize_string_list(legacy_prompt_used),
+            "notes": self._normalize_string_list(notes),
+        }
+        return contract
 
     def _looks_like_type_name(self, text: str) -> bool:
         lowered = text.lower().strip()

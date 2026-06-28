@@ -3,8 +3,61 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional, Tuple
 
+from agent_runtime.core import normalize_term
+
 
 class RequirementLookupMixin:
+    def _term_alias_candidates(self, term: str, info: Optional[Dict] = None) -> List[str]:
+        values: List[str] = []
+
+        def add(value: object) -> None:
+            if value is None:
+                return
+            text = str(value).strip()
+            if not text:
+                return
+            variants = [
+                text,
+                text.lower(),
+                normalize_term(text),
+                normalize_term(text).replace("_", " "),
+                re.sub(r"[^a-z0-9]+", "", text.lower()),
+                re.sub(r"[^a-z0-9]+", " ", text.lower()).strip(),
+            ]
+            for variant in variants:
+                variant = str(variant).strip()
+                if variant and variant not in values:
+                    values.append(variant)
+
+        add(term)
+        if info:
+            add(info.get("name"))
+            add(info.get("req_name"))
+            add(info.get("normalized"))
+            add(info.get("dd_name"))
+            aliases = info.get("aliases") or info.get("variants") or info.get("alias_terms")
+            if isinstance(aliases, dict):
+                for alias_key, alias_value in aliases.items():
+                    add(alias_key)
+                    add(alias_value)
+            elif isinstance(aliases, list):
+                for alias in aliases:
+                    add(alias)
+            elif aliases:
+                add(aliases)
+        return values
+
+    def _term_matches(self, query: str, candidate: str, candidate_info: Optional[Dict] = None) -> bool:
+        query_candidates = self._term_alias_candidates(query)
+        candidate_candidates = self._term_alias_candidates(candidate, candidate_info)
+        for left in query_candidates:
+            for right in candidate_candidates:
+                if not left or not right:
+                    continue
+                if left == right or left in right or right in left:
+                    return True
+        return False
+
     def _normalize_evidence_key(self, text: str) -> str:
         return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
 
@@ -39,12 +92,14 @@ class RequirementLookupMixin:
             name = str(info.get("name", ""))
             name_key = self._normalize_evidence_key(name)
             name_tokens = {tok for tok in re.findall(r"[a-z0-9]+", name.lower()) if tok}
-            if term_key and (term_key == name_key or term_key in name_key or name_key in term_key or term_tokens.intersection(name_tokens)):
+            alias_hit = any(self._term_matches(term, name, info) for term in self._term_alias_candidates(term))
+            if term_key and (term_key == name_key or term_key in name_key or name_key in term_key or term_tokens.intersection(name_tokens) or alias_hit):
                 constants.append(info)
         for info in getattr(self, "source_constraints", []):
             expression = str(info.get("expression", ""))
             expr_key = self._normalize_evidence_key(expression)
-            if term_key and (term_key in expr_key or expr_key in term_key or term_tokens.intersection({tok for tok in re.findall(r"[a-z0-9]+", expression.lower()) if tok})):
+            alias_hit = any(self._term_matches(term, expression, info) for term in self._term_alias_candidates(term))
+            if term_key and (term_key in expr_key or expr_key in term_key or term_tokens.intersection({tok for tok in re.findall(r"[a-z0-9]+", expression.lower()) if tok}) or alias_hit):
                 constraints.append(info)
         return {"constants": constants, "constraints": constraints}
 
@@ -63,11 +118,40 @@ class RequirementLookupMixin:
                     candidates.append(value)
         return candidates
 
+    def _term_evidence_matches(self, term: str, bucket: Dict[str, Dict], bucket_label: str) -> List[Dict[str, object]]:
+        matches: List[Dict[str, object]] = []
+        for bucket_term, info in bucket.items():
+            if not self._term_matches(term, bucket_term, info):
+                continue
+            citation_info = self._term_citation(info) if hasattr(self, "_term_citation") else {"source_path": info.get("source"), "line": info.get("line"), "citation": info.get("source")}
+            matches.append(
+                {
+                    "term": info.get("name", bucket_term),
+                    "matched_term": term,
+                    "bucket": bucket_label,
+                    "source_path": citation_info.get("source_path"),
+                    "line": citation_info.get("line"),
+                    "citation": citation_info.get("citation"),
+                    "type": info.get("type"),
+                    "source": info.get("source"),
+                    "details": info,
+                }
+            )
+        return matches
+
+    def get_dictionary_evidence_for_term(self, term: str) -> List[Dict[str, object]]:
+        return self._term_evidence_matches(term, getattr(self, "data_dict_terms", {}), "data_dictionary")
+
+    def get_uut_evidence_for_term(self, term: str) -> List[Dict[str, object]]:
+        return self._term_evidence_matches(term, getattr(self, "uut_dict_terms", {}), "uut_dictionary")
+
+    def get_header_evidence_for_term(self, term: str) -> List[Dict[str, object]]:
+        return self._term_evidence_matches(term, getattr(self, "source_terms", {}), "source_header")
+
     def check_terms_in_dictionaries(self, terms: List[str]) -> Tuple[List[str], List[str]]:
         found, not_found = [], []
         for term in terms:
-            lower = term.lower()
-            (found if any(lower in t or t in lower for t in self.data_dict_terms.keys()) else not_found).append(term)
+            (found if any(self._term_matches(term, dict_term, info) for dict_term, info in self.data_dict_terms.items()) else not_found).append(term)
         return found, not_found
 
     def get_term_type(self, term: str) -> Optional[str]:
@@ -81,34 +165,38 @@ class RequirementLookupMixin:
         return None
 
     def get_term_info(self, term: str) -> Optional[Dict]:
-        lower = term.lower()
         for dict_term, info in self.data_dict_terms.items():
-            if lower in dict_term or dict_term in lower:
+            if self._term_matches(term, dict_term, info):
                 return info
         for uut_term, info in self.uut_dict_terms.items():
-            if lower in uut_term or uut_term in lower:
+            if self._term_matches(term, uut_term, info):
                 return info
         for extracted_term, info in getattr(self, "extracted_terms", {}).items():
-            if lower in extracted_term or extracted_term in lower:
+            if self._term_matches(term, extracted_term, info):
                 return info
         for header_term, info in self.source_terms.items():
-            if lower in header_term or header_term in lower:
+            if self._term_matches(term, header_term, info):
                 return info
         return None
 
     def check_terms_in_headers(self, terms: List[str]) -> Tuple[List[str], List[str]]:
         found, not_found = [], []
         for term in terms:
-            lower = term.lower()
-            (found if any(lower in t or t in lower for t in self.source_terms.keys()) else not_found).append(term)
+            (found if any(self._term_matches(term, header_term, info) for header_term, info in self.source_terms.items()) else not_found).append(term)
         return found, not_found
 
     def _find_uut_dictionary_matches(self, terms: List[str]) -> Dict[str, List[str]]:
         found, not_found = [], []
         for term in terms:
-            lower = term.lower()
-            (found if any(lower in t or t in lower for t in self.uut_dict_terms.keys()) else not_found).append(term)
+            (found if any(self._term_matches(term, uut_term, info) for uut_term, info in self.uut_dict_terms.items()) else not_found).append(term)
         return {"found": found, "not_found": not_found}
+
+    def get_uut_dictionary_evidence(self, terms: List[str]) -> Dict[str, object]:
+        return {
+            "matches": {term: self.get_uut_evidence_for_term(term) for term in terms},
+            "found": [term for term in terms if self.get_uut_evidence_for_term(term)],
+            "not_found": [term for term in terms if not self.get_uut_evidence_for_term(term)],
+        }
 
     def _lookup_uut_entry(self, component_name: str) -> Optional[Dict]:
         if not component_name:

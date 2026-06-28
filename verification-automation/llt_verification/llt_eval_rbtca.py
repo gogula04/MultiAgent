@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 
 class RequirementRBTCAMixin:
@@ -22,8 +22,31 @@ class RequirementRBTCAMixin:
             return "Composite"
         return "Float"
 
-    def generate_rbtca_yaml(self, result: Dict, req_id: str) -> Tuple[Dict, Dict]:
-        rbtca = {"inputs": {}, "summary": {"covered_cases": 0, "required_cases": 0, "missing": []}}
+    def generate_rbtca_yaml(self, result: Dict, req_id: str, branch_note: Optional[str] = None) -> Tuple[Dict, Dict]:
+        rbtca = {
+            "metadata": {
+                "requirement_id": req_id,
+                "selected_method": result.get("selected_method"),
+            },
+            "inputs": {},
+            "summary": {"covered_cases": 0, "required_cases": 0, "missing": []},
+        }
+        if branch_note:
+            rbtca["metadata"]["branch_note"] = branch_note
+            rbtca["summary"]["branch_note"] = branch_note
+        reuse_candidates = result.get("learning_reuse_candidates", []) or []
+        if reuse_candidates:
+            rbtca["metadata"]["learning_reuse_candidates"] = [
+                {
+                    "case_id": item.get("case_id"),
+                    "requirement_id": item.get("requirement_id"),
+                    "selected_method": item.get("selected_method"),
+                    "score": item.get("score"),
+                    "matched_terms": item.get("matched_terms", []),
+                }
+                for item in reuse_candidates
+                if isinstance(item, dict)
+            ]
         test_case_map = {"inputs": {}, "logic": {}, "math": {}}
         inputs = result.get("inputs", [])
         expressions = result.get("expressions", {})

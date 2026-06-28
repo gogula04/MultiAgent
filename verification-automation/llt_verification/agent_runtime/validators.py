@@ -1,4 +1,4 @@
-"""Validation helpers for LLT peer-agent handoffs."""
+"""Validation helpers for LLT multi-agent handoffs."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ CONTRACT_KEYS: Dict[str, List[str]] = {
         "bold_terms",
         "types_and_ranges",
         "expressions",
+        "extraction_contract",
         "component_name",
         "status",
     ],
@@ -90,6 +91,7 @@ CONTRACT_KEYS: Dict[str, List[str]] = {
         "requirement_id",
         "status",
         "method_decision",
+        "method_proof",
         "artifacts",
         "review",
         "execution_result",

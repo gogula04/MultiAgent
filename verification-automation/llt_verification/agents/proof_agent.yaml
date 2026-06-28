@@ -1,5 +1,5 @@
 name: proof-agent
-description: Produces the final proof report and run summary for a verified requirement, including requirement mapping, evidence mapping, method decision, execution, review, and generated files.
+description: Produces the final proof report and run summary for a verified requirement, including requirement mapping, evidence mapping, method decision, execution, review, generated files, and controlled offline learning for approved runs.
 inputs:
   - requirement_package
   - evidence_package

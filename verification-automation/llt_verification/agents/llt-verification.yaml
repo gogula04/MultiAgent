@@ -2,14 +2,17 @@
 
 name: llt-verification-coordinator
 description: |
-  Poolside-only coordinator for the skill-guided LLT verification pipeline.
-  It routes requirement, evidence, normalization, analysis, strategy,
-  direct artifact, hybrid artifact, traceability, execution, debug, review,
-  and proof packages, and allows the legacy extraction prompt bundle only as
-  a fallback when the deterministic parser leaves gaps.
+  Requirement-centric, coordinator-led, RAG-backed multi-agent verification
+  system with controlled offline learning, tenant-scoped enterprise queueing,
+  and approval-gated evidence access. The coordinator routes requirement,
+  evidence, normalization, analysis, strategy, artifact, traceability,
+  execution, debug, review, and proof packages, while the legacy extraction
+  prompt bundle remains a fallback when the deterministic parser leaves gaps.
+  Direct/Hybrid selection stays evidence-driven and artifact generation follows
+  the branch-specific dictionary/RBTCA/test flow.
 
 metadata:
-  short-description: Peer-agent LLT verification coordinator
+  short-description: Multi-agent LLT verification coordinator
   category: development-tools
   author: poolside-agent
   version: 1.0.0
@@ -28,7 +31,7 @@ behavior:
   timeout: 30
 
 tools:
-  - verify_requirement: Route the full peer-agent LLT verification flow
+  - verify_requirement: Route the full coordinator-led multi-agent LLT verification flow
   - retrieve_code_context: Search repo files for relevant verification context
   - review_verification_bundle: Review generated artifacts and proof
 
@@ -38,6 +41,11 @@ entrypoints:
   - python llt_verification_agent.py --query "verify requirement FAF-LLR-401"
   - python llt_verification_agent.py --interactive
   - python llt_verification_agent.py --verify "verify requirement FAF-LLR-401"
+  - python llt_verification_agent.py --submit-job "verify requirement FAF-LLR-401"
+  - python llt_verification_agent.py --approve-job job-20260627-0001
+  - python llt_verification_agent.py --run-queue
+  - python llt_verification_agent.py --enterprise-dashboard
+  - python llt_verification_agent.py --enterprise-regression-evals
 
 requirements:
   - Build the FAISS index first with --index

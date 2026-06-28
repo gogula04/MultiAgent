@@ -44,13 +44,21 @@ class RequirementAssessMixin:
     def evaluate(self, requirement_description: str, allow_source_reading: bool = False, poolside_client=None) -> Dict:
         self.load_data_dictionary_terms()
         self.load_uut_dictionary_terms()
+        source_access_blocked = ""
         if allow_source_reading:
-            self.load_source_terms()
+            try:
+                self.load_source_terms()
+            except PermissionError as exc:
+                source_access_blocked = str(exc)
+                self.source_terms = {}
+                self.source_constants = []
+                self.source_constraints = []
         else:
             self.source_terms = {}
             self.source_constants = []
             self.source_constraints = []
         classification = self.classify_requirement(requirement_description)
+        notes: List[str] = []
         bold_terms = self.extract_bold_terms(requirement_description)
         types_and_ranges = self.extract_types_and_ranges(requirement_description)
         self.extracted_terms = {}
@@ -95,11 +103,14 @@ class RequirementAssessMixin:
                 },
             }
 
-            classification_hint = self._run_legacy_prompt(poolside_client, "legacy_classification", "classify_req.txt", legacy_payload)
-            candidate_classification = str(classification_hint.get("classification", "")).strip()
-            if candidate_classification:
-                classification = candidate_classification
-                legacy_prompt_used.append("classify_req.txt")
+            if self._needs_classification_fallback(classification, requirement_description):
+                classification_hint = self._run_legacy_prompt(poolside_client, "legacy_classification", "classify_req.txt", legacy_payload)
+                candidate_classification = str(classification_hint.get("type") or classification_hint.get("classification", "")).strip()
+                if candidate_classification:
+                    classification = candidate_classification
+                    legacy_prompt_used.append("classify_req.txt")
+                else:
+                    notes.append("Legacy classification prompt returned no usable classification")
 
             need_io_prompt = not inputs or not outputs or not types_and_ranges
             if need_io_prompt:
@@ -109,6 +120,8 @@ class RequirementAssessMixin:
                     outputs = self._merge_unique_strings(outputs, io_hint.get("outputs", []))
                     types_and_ranges = self._merge_types_and_ranges(types_and_ranges, io_hint.get("types_and_ranges", []))
                     legacy_prompt_used.append("io_vars_prompt_with_example.txt")
+                else:
+                    notes.append("Legacy IO prompt returned no usable variables")
 
             need_expression_prompt = not any(expressions.get(key) for key in ("conditions", "comparisons", "calculations", "constants", "robustness_cases"))
             if need_expression_prompt:
@@ -117,8 +130,11 @@ class RequirementAssessMixin:
                     for key in ("conditions", "comparisons", "calculations", "constants", "robustness_cases"):
                         expressions[key] = self._merge_unique_strings(expressions.get(key, []), expr_hint.get(key, []))
                     legacy_prompt_used.append("expression_prompt.txt")
+                else:
+                    notes.append("Legacy expression prompt returned no usable expressions")
 
-            needs_math_prompt = "math" in classification.lower() or "string format" in classification.lower() or not expressions.get("calculations")
+            signals = self._requirement_signals(requirement_description)
+            needs_math_prompt = signals["math"] and not expressions.get("calculations")
             if needs_math_prompt:
                 math_hint = self._run_legacy_prompt(poolside_client, "legacy_math_extraction", "math_extraction_prompt.txt", legacy_payload)
                 if math_hint:
@@ -126,8 +142,10 @@ class RequirementAssessMixin:
                         expressions[key] = self._merge_unique_strings(expressions.get(key, []), math_hint.get(key, []))
                     types_and_ranges = self._merge_types_and_ranges(types_and_ranges, math_hint.get("types_and_ranges", []))
                     legacy_prompt_used.append("math_extraction_prompt.txt")
+                else:
+                    notes.append("Legacy math prompt returned no usable math details")
 
-            needs_format_prompt = "format" in classification.lower() or not types_and_ranges
+            needs_format_prompt = signals["format"] and not types_and_ranges
             if needs_format_prompt:
                 format_hint = self._run_legacy_prompt(poolside_client, "legacy_format_extraction", "format_extration.txt", legacy_payload)
                 if format_hint:
@@ -135,13 +153,19 @@ class RequirementAssessMixin:
                     for key in ("constants", "robustness_cases"):
                         expressions[key] = self._merge_unique_strings(expressions.get(key, []), format_hint.get(key, []))
                     legacy_prompt_used.append("format_extration.txt")
+                else:
+                    notes.append("Legacy format prompt returned no usable format details")
 
+            needs_formatted_output_prompt = signals["format"] and (not inputs or not outputs)
+            if needs_formatted_output_prompt:
                 formatted_hint = self._run_legacy_prompt(poolside_client, "legacy_formatted_output_extraction", "formatted_output_exytraction_prompt.txt", legacy_payload)
                 if formatted_hint:
                     inputs = self._merge_unique_strings(inputs, formatted_hint.get("inputs", []))
                     outputs = self._merge_unique_strings(outputs, formatted_hint.get("outputs", []))
                     types_and_ranges = self._merge_types_and_ranges(types_and_ranges, formatted_hint.get("types_and_ranges", []))
                     legacy_prompt_used.append("formatted_output_exytraction_prompt.txt")
+                else:
+                    notes.append("Legacy formatted-output prompt returned no usable variables")
 
         inferred_inputs = []
         inferred_outputs = []
@@ -159,15 +183,40 @@ class RequirementAssessMixin:
                 inferred_inputs.append(name)
         inputs = self._merge_unique_strings(inputs, inferred_inputs)
         outputs = self._merge_unique_strings(outputs, inferred_outputs)
+        inputs = self._normalize_string_list(inputs)
+        outputs = self._normalize_string_list(outputs)
+        bold_terms = self._normalize_string_list(bold_terms)
+        types_and_ranges = self._normalize_types_and_ranges(types_and_ranges)
+        expressions = self._normalize_expressions(expressions)
+        legacy_prompt_used = self._normalize_string_list(legacy_prompt_used)
+
+        extraction_contract = self._build_extraction_contract(
+            requirement_description=requirement_description,
+            classification=classification,
+            inputs=inputs,
+            outputs=outputs,
+            bold_terms=bold_terms,
+            types_and_ranges=types_and_ranges,
+            expressions=expressions,
+            legacy_prompt_used=legacy_prompt_used,
+            notes=notes,
+        )
 
         inputs_dict_found, inputs_dict_not_found = self.check_terms_in_dictionaries(inputs)
         outputs_dict_found, outputs_dict_not_found = self.check_terms_in_dictionaries(outputs)
         if allow_source_reading:
             inputs_source_found, inputs_source_not_found = self.check_terms_in_headers(inputs)
             outputs_source_found, outputs_source_not_found = self.check_terms_in_headers(outputs)
+            inputs_source_citations = {term: self.get_header_evidence_for_term(term) for term in inputs_source_found}
+            outputs_source_citations = {term: self.get_header_evidence_for_term(term) for term in outputs_source_found}
         else:
             inputs_source_found, inputs_source_not_found = [], inputs[:]
             outputs_source_found, outputs_source_not_found = [], outputs[:]
+            inputs_source_citations = {}
+            outputs_source_citations = {}
+        inputs_dict_citations = {term: self.get_dictionary_evidence_for_term(term) for term in inputs_dict_found}
+        outputs_dict_citations = {term: self.get_dictionary_evidence_for_term(term) for term in outputs_dict_found}
+        uut_dictionary_evidence = self.get_uut_dictionary_evidence(inputs + outputs)
         constants = expressions.get("constants", [])
         robustness_cases = expressions.get("robustness_cases", [])
         missing_definitions = (inputs_dict_not_found + outputs_dict_not_found)[:]
@@ -181,6 +230,51 @@ class RequirementAssessMixin:
             blockers.append("No requirement structure identified")
         if not mapping_evidence:
             blockers.append("No data dictionary or source evidence to map the requirement" if allow_source_reading else "No data dictionary evidence to map the requirement before consulting source code")
+        if source_access_blocked:
+            blockers.append(source_access_blocked)
         if not can_write_tests:
             blockers.append("No executable verification path could be proven")
-        return {"classification": classification, "bold_terms": bold_terms, "types_and_ranges": types_and_ranges, "legacy_prompt_used": legacy_prompt_used, "testable": can_write_tests, "inputs": inputs, "outputs": outputs, "expressions": expressions, "constants": constants, "robustness_cases": robustness_cases, "source_constants": getattr(self, "source_constants", []), "source_constraints": getattr(self, "source_constraints", []), "data_dictionary_findings": {"inputs_found": inputs_dict_found, "inputs_not_found": inputs_dict_not_found, "outputs_found": outputs_dict_found, "outputs_not_found": outputs_dict_not_found}, "source_file_findings": {"inputs_found": inputs_source_found, "inputs_not_found": inputs_source_not_found, "outputs_found": outputs_source_found, "outputs_not_found": outputs_source_not_found}, "uut_dictionary_findings": self._find_uut_dictionary_matches(inputs + outputs), "testability_analysis": {"can_write_tests": can_write_tests, "reasoning": self._generate_reasoning(classification, inputs, outputs, inputs_dict_found, inputs_dict_not_found, outputs_dict_found, outputs_dict_not_found, inputs_source_found, outputs_source_found, blockers), "missing_definitions": missing_definitions, "blockers": blockers, "proof_of_testability": self._generate_proof_of_testability(inputs, outputs, inputs_dict_found, inputs_dict_not_found, outputs_dict_found, outputs_dict_not_found, inputs_source_found, outputs_source_found, blockers)}}
+        return {
+            "classification": classification,
+            "bold_terms": bold_terms,
+            "types_and_ranges": types_and_ranges,
+            "legacy_prompt_used": legacy_prompt_used,
+            "extraction_contract": extraction_contract,
+            "testable": can_write_tests,
+            "inputs": inputs,
+            "outputs": outputs,
+            "expressions": expressions,
+            "constants": constants,
+            "robustness_cases": robustness_cases,
+            "source_constants": getattr(self, "source_constants", []),
+            "source_constraints": getattr(self, "source_constraints", []),
+            "source_access_blocked": source_access_blocked,
+            "data_dictionary_findings": {
+                "inputs_found": inputs_dict_found,
+                "inputs_not_found": inputs_dict_not_found,
+                "outputs_found": outputs_dict_found,
+                "outputs_not_found": outputs_dict_not_found,
+                "input_citations": inputs_dict_citations,
+                "output_citations": outputs_dict_citations,
+            },
+            "source_file_findings": {
+                "inputs_found": inputs_source_found,
+                "inputs_not_found": inputs_source_not_found,
+                "outputs_found": outputs_source_found,
+                "outputs_not_found": outputs_source_not_found,
+                "input_citations": inputs_source_citations,
+                "output_citations": outputs_source_citations,
+            },
+            "uut_dictionary_findings": {
+                "found": uut_dictionary_evidence["found"],
+                "not_found": uut_dictionary_evidence["not_found"],
+                "matches": uut_dictionary_evidence["matches"],
+            },
+            "testability_analysis": {
+                "can_write_tests": can_write_tests,
+                "reasoning": self._generate_reasoning(classification, inputs, outputs, inputs_dict_found, inputs_dict_not_found, outputs_dict_found, outputs_dict_not_found, inputs_source_found, outputs_source_found, blockers),
+                "missing_definitions": missing_definitions,
+                "blockers": blockers,
+                "proof_of_testability": self._generate_proof_of_testability(inputs, outputs, inputs_dict_found, inputs_dict_not_found, outputs_dict_found, outputs_dict_not_found, inputs_source_found, outputs_source_found, blockers),
+            },
+        }

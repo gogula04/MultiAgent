@@ -1,4 +1,4 @@
-"""Typed messages exchanged between LLT verification peer agents."""
+"""Typed messages exchanged between LLT verification multi-agent stages."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 @dataclass
 class AgentMessage:
-    """A validated handoff between peer agents."""
+    """A validated handoff between multi-agent stages."""
 
     agent: str
     stage: str
