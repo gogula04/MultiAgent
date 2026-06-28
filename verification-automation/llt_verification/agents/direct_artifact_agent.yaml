@@ -1,0 +1,7 @@
+name: direct-artifact-agent
+description: Builds Direct-method data dictionaries, RBTCA YAML, and Python pytest_smart tests, and uses proven source constants or constraints only when they are needed for exact verification values.
+inputs:
+  - verification_package
+  - strategy_decision
+outputs:
+  - artifact_patch

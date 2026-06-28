@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Requirement Package",
+  "type": "object",
+  "required": ["requirement_id", "requirement_text", "classification", "inputs", "outputs", "bold_terms", "expressions", "component_name", "status"]
+}

@@ -1,0 +1,8 @@
+name: traceability-agent
+description: Verifies the requirement, dictionaries, RBTCA, and Python test files stay aligned.
+inputs:
+  - verification_package
+  - strategy_decision
+  - artifact_patch
+outputs:
+  - traceability_result

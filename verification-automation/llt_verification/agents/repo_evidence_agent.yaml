@@ -1,0 +1,6 @@
+name: repo-evidence-agent
+description: Searches requirement text, headers, source symbols, and repository dictionary CSV/YAML evidence to prove the inputs, outputs, and mapping evidence.
+inputs:
+  - requirement_package
+outputs:
+  - evidence_package

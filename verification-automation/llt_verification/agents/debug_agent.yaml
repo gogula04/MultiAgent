@@ -1,0 +1,7 @@
+name: debug-agent
+description: Reads failures and patches verification artifacts only when the failure is actionable, using source evidence only in the allowed debug path.
+inputs:
+  - artifact_patch
+  - execution_result
+outputs:
+  - debug_result

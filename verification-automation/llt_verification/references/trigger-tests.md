@@ -13,6 +13,8 @@ Use these prompts to validate that the skill activates only for requirement-veri
 
 Expected: the LLT Verification skill activates.
 
+These prompts are for activation testing only; the actual verification flow still runs through the Poolside-only peer-agent runtime and may use the legacy extraction prompts only as fallback parsing helpers.
+
 ## Near Miss Prompts
 
 - `analyze requirement FAF-LLR-401`

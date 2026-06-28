@@ -19,4 +19,5 @@ Return the final result in this order:
 - Include the exact command and exit code for each execution step.
 - Do not claim pass unless the command actually passed.
 - If blocked, name the blocker and the evidence that proves it.
+- If the legacy extraction prompts were used, name the prompt files that fired and which gaps they filled.
 - Keep the report concise but complete enough to audit.

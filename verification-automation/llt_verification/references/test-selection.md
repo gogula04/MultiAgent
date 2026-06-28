@@ -341,7 +341,7 @@ Choose Blocked when:
 - Use `FW.Set()`, `FW.Run()`, and `FW.Verify()` in the test body.
 - Use `pytest.mark.skip` for coverage-only cases that cannot execute by design.
 - Keep one Python test function per RBTCA testcase unless a single function intentionally covers multiple scenarios.
-- Direct and Hybrid both use the same Python testcase shape; the difference is the component setup and supporting artifacts, not the test function layout.
+- Direct and Hybrid use the same Python testcase shape; the difference is the component setup and supporting artifacts, not the test function layout.
 
 ## Exact Reporting Expectations
 

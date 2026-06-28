@@ -1,0 +1,158 @@
+Given a requirement description in markdown format, analyze it and provide the following analysis in the specified JSON structure. Ensure all mathematical expressions are presented in plain text without LaTeX or any other formatting. It is crucial that single character identifiers (e.g., A, B, C) are used for input variables in both conditions and formulas, and these identifiers must match those listed under "input_variables" and "derived_variables" in the JSON output.
+
+1. CONDITIONAL CASES:
+
+List each distinct condition under which the formula behaves differently. Ensure this list is exhaustive; all possible conditions that affect the formula's behavior must be included, and no additional conditions should be implied beyond what is explicitly stated. For each condition:
+
+Precise Condition Statement: Use boolean logic (AND, OR, NOT) and mathematical comparison operators (>, <, <=, >=, ==, !=) to state the condition precisely, using single character identifiers for input variables. For example: "A > 0 AND B == 1".
+
+Exhaustive conditions: Search the entire text of the requirement for all conditions. Some of these conditions may relate to output string formats (e.g., 'a' is 'X' when VAR < 0). These conditions (e.g., VAR < 0) should included in the conditions list. Never put conditions (e.g., if/else statements) in formulas or formats: list them seperately so that the formatter (who will be called later) can see the independent conditions.
+
+Specific Parameter Values or Constants: List any specific parameter values or constants that apply only in this case. These parameters may be used in a comparison or equality (==, is), e.g. A == "Valid".
+
+Consistent Use of Identifiers: Ensure that single character identifiers used in conditions match those defined under "input_variables". These should start at A and continue sequentially.
+
+Boolean Values: Do not include booleans (true and false) in conditions. In a case where A == true, only use "A". Likewise, for when A is false, use "not A".
+
+Don't Care Variables: Some requirements will indicate "Don't care" variables. List these in the output by their aliases only if they are explicitly labeled as "Don't care".
+
+Important Note: Conditions should only include those factors directly related to the input variables and their mathematical relationships as defined by the problem statement. External factors not influencing the formula's behavior should not be included. A final else statement should be taken to be a false condition and not included in the conditions list. The formula for a final else statement should be included as a false value.
+
+2. INPUT VARIABLES:
+
+Provide a minimal set of required input variables:
+
+External Variables: List all external variables that must be input to compute the result, assigning each a unique single character identifier (e.g., A, B, C).
+
+Exclude Intermediate Variables: Exclude intermediate variables that can be derived from the given inputs.
+
+Single Character Identifier: Include a single character identifier for each input variable and ensure it is used consistently in conditions and formulas.
+
+Here is a list of input variables that was extracted at an earlier stage of analysis. You may need to modify this list, but do not rename variables.{input_var_list}
+
+3. DERIVED VARIABLES AND FORMULAS:
+
+Some of the conditional cases specified by the requirement will require calculating intermediate variables. If these intermediate variables provide the output then they must be listed as "derived_variables". If some derived variables are already listed as input variables, still treat them as a derived variable. Following are the rules for derived variables:
+
+Complete Mathematical Formula: Write out the complete mathematical formula that applies, using single character identifiers for all input variables.
+
+Substitute Intermediate Calculations: Substitute all intermediate calculations directly into the final equation. Any inputs that can be derived from other inputs should not be included in the list.
+
+Non-conditional formulas: There must be no if/else or other conditional clauses in a formula. These conditions must be captured as an explicit condition via the prior instructions.
+
+Final Closed Form of the Equation: Present the final closed form of the equation.
+
+Consistent Use of Identifiers: Ensure that single character identifiers used in formulas match those defined under "input_variables". These should start at A and continue sequentially.
+
+Here is a list of allowable functions from the Python math module that you can use in the formulas: abs, floor, ceil, sin, cos, tan, asin, acos, atan, sinh, cosh, tanh, asinh, acosh, atanh, log, log2, log10, exp, sqrt, cbrt, atan2. Also use Python syntax for basic math operators, including "**" (instead of "^") for exponents.
+
+4. OUTPUT VARIABLE:
+
+Provide a list of output variables for the requirement.
+
+Output variables are defined in the requirement text with an "as" statement.
+
+Here is a list of output variables that was extracted at an earlier stage of analysis. You may need to modify this list, but do not rename variables.{output_var_list}
+
+5. FALSE VALUES:
+
+Provide a list of values that the output variable should take when no condition is true (i.e., the default or false output).Include the formula for a final else statement in the list of false values.False values must be formatted as a list.
+
+JSON Response Format:
+
+{{
+ "input_variables": [
+ {{
+ "name": "[variable 1 name]",
+ "units": "[units for variable 1]",
+ "identifier": "[single character identifier for variable 1, e.g., A]"
+ }},
+ {{
+ "name": "[variable 2 name]",
+ "units": "[units for variable 2]",
+ "identifier": "[single character identifier for variable 2, e.g., B]"
+ }},
+ ],
+ "derived_variables": [
+ {{
+ "name": "[derived variable 1 name]",
+ "formula": "[complete mathematical expression using single character identifiers]",
+ "units": "[units for variable 1]",
+ "identifier": "[single character identifier for variable 1, e.g., C]"
+ }}
+ ]
+ "output_variable": "[name of the output variable]",
+ "conditions": [
+ {{
+ "condition": "[logical condition expressed in terms of the input variables]",
+ "variable": "[input or derived variable identifier supplying the value for the format]"
+ "format": "[format string for output]",
+ "dont_cares": "[don't care variables or empty list]
+ }}
+ ],
+ "false_values": "[list of values to output when the conditions are false]"
+}}
+
+Example Output:
+
+{{
+ "input_variables": [
+ {{
+ "name": "Velocity",
+ "units": "m/s",
+ "identifier": "A"
+
+ }},
+ {{
+ "name": "Acceleration",
+ "units": "m/s^2",
+ "identifier": "B"
+
+ }},
+ {{
+ "name": "Time",
+ "units": "seconds",
+ "identifier": "C"
+ }},
+ {{
+ "name": "DistanceUnits",
+ "units": "enumeration",
+ "identifier": "D"
+ }}
+ ],
+ "derived_variables": [
+ {{
+ "name": "Force X",
+ "formula": "A * B + C"
+ "units": "N",
+ "identifier": "E"
+
+ }},
+ {{
+ "name": "Force Y",
+ "formula": "A / B - C"
+ "units": "N",
+ "identifier": "F"
+
+ }},
+ ],
+
+"output_variable": "Resultant Force",
+ "conditions": [
+ {{
+ "condition": "A > 1 AND B <= 5 AND D == 'Meters'",
+ "variable": "E",
+ "format": "dd",
+ "dont_cares": []
+ }},
+ {{
+ "condition": "A <= 1 OR B > 5",
+ "variable": "F",
+ "format": "d.dd",
+ "dont_cares: ["D"]
+ }}
+ ],
+ "false_values": "[\" \"]"
+}}
+
+Here is the requirement to analyze:{req_description}

@@ -1,0 +1,7 @@
+name: term-normalization-agent
+description: Normalizes requirement, input, output, and dictionary terms into stable aliases for evidence, strategy, artifact generation, and traceability.
+inputs:
+  - requirement_package
+  - evidence_package
+outputs:
+  - normalized_terms_package

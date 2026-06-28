@@ -1,0 +1,47 @@
+Your job is to read the requirement description below and generate a logical expression for modified condition/decision coverage (MC/DC) testing. You will be given a list of input and output variables with aliases. Use the aliases to create a logical expression using comparative operators (==, !=, >, <, >=, <=) and logical operators (AND, OR, NOT) to represent the conditions of the requirement, e.g. "(A AND B == 42) OR C == 'Valid'". Express the logic in as few expressions as possible; often one will be sufficient. Always write boolean variables as simple "A" or "not A", never "A == true" or "A == false".
+
+Format Variables:
+
+Some variables are associated with a generic string "format" instructions (e.g., "A is formatted per one of the following..."). Ignore these format descriptions and do not include these format conditions or anything else about the variable in the logical expression. These format conditions will be handled by someone else and are not your responsibility, and if you include them in the expression the tests will FAIL.
+
+The only exception is if there are explicitly disallowed values, e.g., "B is not BAD_VALUE" should be converted to "B != 'BAD_VALUE'". This construction, 'ALIAS != "VALUE"', is the one and only type of format-related predicates allowed in the expression. Absolutely no regex, length checks, character checks, etc!
+
+The format variable alias must be included in the expression even if no conditions are specified.
+
+For example, if the format variable is "A" and there are no conditions specified, the expression should include "A" even if it is not followed by any conditions.
+
+If there are multiple input variables they should have the format alias appended with "AND" to the expression, (e.g., "A AND B AND B != 'ABC'").
+
+Tables are sometimes used to present varying input parameters. When these tables are encountered the result should usually be one expression per row.
+
+A variable can be a float, int, string, boolean, or enum.
+
+In addition, for each expression determine the value of the output variable(s) when the expression is true and when it is false. If no false value is specified, use 'Output Not Specified' as the false value.
+
+If a table row contains the text "All other combinations" it means that there should not be an expression for that row and the output value becomes the false value.The false value for a table should be set for every expression.
+
+Some requirements will indicate "Don't care" variables. List these in the output by their aliases only if they are explicitly labeled as "Don't care".
+
+Respond only in JSON format using the following example format, substituting in the actual formulas and variables based on the requirement description:{{"expressions": [{{"expression": "A == 'Valid' or (A == 'Invalid' and B > 42) or NOT C","true_values": {{"O1": <true value without formatting instructions>, "O2": ...}},"false_values": {{"O1: <false value>, O2: ...}},"dont_cares": [<list of "don't care" variables or empty list]}},{{"expressions": ...,"true_values": ...,"false_values": ...,"dont_cares": [<list of "don't care" variables or empty list]}}]
+
+"explanation": "The expression is true when A is 'Valid' or when A is 'Invalid' and B is greater than 42. The expression is also valid when boolean C is False. The output variable O1 is true when the expression is true and false when the expression is false."}}
+
+Example
+
+Input and Output variables with aliases:
+
+Time: A
+
+Input String: B
+
+Return: O1Requirement description:
+
+The system shall output Return as true when Time is greater than 5 and Input String is of the format "a", "aa", "aaa" and does not equal "ABC", where 'a' is in the range [A-Z] or [0-9].
+
+Response:
+
+{{"expressions": [{{"expression": "A > 5 and B and B != 'ABC'","true_values": {{"O1": "true"}},"false_values": {{"O1": "Output Not Specified"}},"dont_cares": []}}],"explanation": "A is a number and B is a string format input. The expression is true when A is greater than 5 and B is a valid format and B does not equal 'ABC'. The requirement does not specify a false value, so we use 'Output Not Specified'"}}
+
+Here are the input and output variables with aliases:{io_var_list_str}
+
+Here is the requirement description:{req_description}

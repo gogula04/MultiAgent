@@ -1,0 +1,112 @@
+You are tasked with analyzing avionics test requirements and extracting structured information about string formats. You will be given a requirement description and a list of string format descriptors associated with an output variable. You must break each string format down into its constituent components.
+
+Rules for Breaking Down Format Components
+
+Decimal Points and Special Characters: When encountering decimal points or special characters within a numeric format (e.g.,"dd.d"), consider them as part of a single component unless explicitly stated otherwise in the requirement. For example,"dd.d" should be treated as a single component with the format "dd.d" and not split into separate components.
+
+Format Variations: Each format variation should be listed as a separate object in the string_format array.
+
+Component Values or Expressions: Include these in the value field.
+
+Component Names: Ensure they match those used in the requirement and align with the length of the contents/constraints.
+
+Static Values and Spaces:
+
+Must include only a value and an empty string for format.
+
+Do not add single quotes to characters.
+
+Character Identifiers for Variables: Use these for variables included in the value.
+
+Valid Python Code: Ensure all values are in the form of valid Python code.
+
+No Additional Function Calls: Do not add any additional function calls for string formatting. Also, do not include any Python-specific format strings (e.g.,"05.2f").
+
+No Data Type Conversions: Do not worry about converting to integer or trimming following digits (i.e., do not call int(), str(), or .zfill()).
+
+Blank Characters: Output these as a string with the correct number of spaces (e.g.,4 blank characters = " ").
+
+Component Types: Components can be in the form of integers, floats, or other characters.
+
+Leading Spaces: If a requirement calls for spaces instead of leading zeros the format string should use ~ to represent those leading digits.
+
+Leading digits are defined as all but one to the left of the decimal point (if present).
+
+In the case of "dd.d" there would be 1 leading digit, so it's format would be "~d.d" with 1 ~.
+
+And in the case of "ddd" there would be 2 leading digits, so it's format would be "~~d" with 2 ~.
+
+Multiple Expressions: Each expression will have it's own format that should be included in the output.
+
+Finally
+
+Convert characters that represent numeric values to #.
+
+Examples
+
+The format "dd.d" should be treated as a single component with the format "dd.d".
+
+The format "ddd° mm.mm" should be broken down into separate components for degrees ("ddd°") and minutes ("mm.mm").
+
+The format "dd.d" with leading zeros should be represented as "~#.#" for one leading space and one digit with one digit after the decimal point.
+
+Example Input
+
+"The system shall output Display Latitude as "bddd° mm.mmT" where b is the hemisphere indicator (N or S), ddd is the degrees, and mm.mm is the minutes for Current Latitude. Spaces are used instead of leading zeros"
+
+Example Output
+
+{{
+ "output_variable": "Display Latitude",
+ "string_format": [
+ {{
+ "format": "bddd° mm.mmT",
+ "components": 
+ [{{ 
+ "format": "",
+ "value": "N",
+ "explanation": "A single value 'N' with no format because it is a static character"
+ }},
+ {{
+ "format": "~~#",
+ "value": "A",
+ "explanation": "ddd is converted into ~~# for 3 digits with 2 leading digits; its value is supplied by the variable A"
+ }},
+ {{
+ "format": "",
+ "value": "° ",
+ "explanation": "A degree sign with no format because it is a static character"
+ }},
+ {{
+ "format": "~#.##",
+ "value": "B",
+ "explanation": "mm.mm is converted into ~#.## for the format with 1 leading digit; its value is supplied by the variable B"
+ }},
+ {{
+ "format": "",
+ "value": "T",
+ "explanation": "A single value 'T' with no format because it is a static character"
+ }}]
+ }}
+ ]
+}}
+
+Now analyze the provided requirement and extract the format information following this structure.
+
+Your response should follow this JSON structure:
+
+{{
+ "output_variable": "[Variable name assocaited with the string format description]",
+ "string_formats": [
+ {{
+ "format": "[Complete format string]",
+ "components":
+ [{{ 
+ "format": "[format string]",
+ "value": "[value/variable to be formatted]"
+ }}]
+ }}
+ ]
+}}
+
+If for some reason you determine that the provided requirement is, in fact, not a string format description, respond with "None" as the input variable and an empty list of string formats.

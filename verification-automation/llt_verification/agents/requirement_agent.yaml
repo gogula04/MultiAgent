@@ -1,0 +1,6 @@
+name: requirement-agent
+description: Extracts the requirement id, requirement text, component name, inputs, outputs, types and ranges, and expressions, using the legacy prompt bundle only as a fallback when the deterministic parser leaves gaps.
+inputs:
+  - user_prompt
+outputs:
+  - requirement_package

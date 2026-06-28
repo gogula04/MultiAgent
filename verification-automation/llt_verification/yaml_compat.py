@@ -1,21 +1,14 @@
 """Minimal YAML-compatible fallback for the LLT verification scripts.
 
-This module intentionally supports only the small surface area used in this
-workspace: `dump`, `safe_dump`, and `safe_load`.
-
-The parser is intentionally conservative. It supports the common YAML shapes
-used by this skill bundle and by simple dictionary files:
-- mappings
-- lists
-- nested mappings/lists via indentation
-- quoted and unquoted scalars
+This module keeps the tiny YAML surface used by the repo without shadowing a
+real `yaml` installation if one is later added to the environment.
 """
 
 from __future__ import annotations
 
 import ast
 import json
-from typing import Any, Iterable, List, Tuple, TextIO
+from typing import Any, List, TextIO, Tuple
 
 
 def _parse_scalar(token: str) -> Any:
@@ -148,7 +141,6 @@ def safe_load(stream: Any) -> Any:
     if not text:
         return None
 
-    # Fast path for JSON-compatible YAML.
     try:
         return json.loads(text)
     except Exception:

@@ -9,7 +9,7 @@
 - Existing repo examples are style references, not blockers.
 - Do not guess mappings, expected values, or coverage cases.
 - Do not modify production code.
-- Any older prompt bundle used by a removed testbot is fallback reference only; keep the active path deterministic and code-driven unless the task explicitly says to restore legacy extraction.
+- Any older prompt bundle used by a removed legacy harness is fallback reference only; use it only when the deterministic requirement extractor leaves gaps in classification, IO variables, expressions, math, or formatting.
 
 ## Schema Compliance
 
@@ -22,11 +22,15 @@
 
 Only read implementation/source files in these cases:
 
-1. Creating or updating a Hybrid `.rvstest` procedure vector.
+1. Creating or updating a Direct or Hybrid verification artifact when exact visible constants, literal values, range limits, boundary values, or comparison constraints are needed for test generation.
 2. Debugging a failing generated test or other blocked verification path.
-3. Resolving a mapping failure when requirement text, headers, and dictionaries do not provide enough evidence.
+3. Review-stage inspection of the generated verification bundle.
+4. Resolving a mapping failure when requirement text, headers, and dictionaries do not provide enough evidence.
+5. Extracting visible constants, exact literal values, range limits, boundary values, or comparison constraints needed for verification when one of the allowed cases above applies.
+6. Using the legacy extraction prompts as fallback for requirement classification, IO extraction, expression extraction, math extraction, or format extraction when the deterministic parser cannot prove the result safely.
 
-Do not read implementation files for simple Direct-method work, normal artifact generation, or style/reference lookup, and do not modify production source code.
+Do not read implementation files for simple non-artifact Direct work, normal evidence collection, or style/reference lookup, and do not modify production source code.
+Do not read implementation files during requirement extraction, evidence collection, normalization, analysis, strategy, or any artifact generation that does not need proven source constants or constraints.
 
 ## Blockers
 

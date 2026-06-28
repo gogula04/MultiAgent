@@ -1,0 +1,8 @@
+name: poolside-analysis-agent
+description: Uses Poolside to summarize the evidence, highlight risks, and reinforce the likely verification path without overriding deterministic parsing.
+inputs:
+  - requirement_package
+  - evidence_package
+  - normalized_terms_package
+outputs:
+  - analysis_package
