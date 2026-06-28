@@ -7,6 +7,8 @@ This repository contains a requirement-centric, coordinator-led, RAG-backed mult
 - [agent_runtime/](/Users/venkateshgogula/Desktop/llt_verification/agent_runtime)
 - [agents/](/Users/venkateshgogula/Desktop/llt_verification/agents)
 - [references/](/Users/venkateshgogula/Desktop/llt_verification/references)
+- [references/poolside-verification-playbook.md](/Users/venkateshgogula/Desktop/llt_verification/references/poolside-verification-playbook.md)
+- [references/poolside-prompts/](/Users/venkateshgogula/Desktop/llt_verification/references/poolside-prompts)
 - [references/legacy-extraction-prompts/](/Users/venkateshgogula/Desktop/llt_verification/references/legacy-extraction-prompts)
 - [requirements.txt](/Users/venkateshgogula/Desktop/llt_verification/requirements.txt)
 
@@ -62,6 +64,8 @@ flowchart TD
 - Frameworks: LangChain community components and `langchain-huggingface`
 - Runtime: coordinator-led multi-agent stages with typed package handoffs
 - Fallback extraction: legacy prompt bundle under `references/legacy-extraction-prompts/` for classification, IO extraction, expression extraction, math extraction, and format extraction when the deterministic parser leaves gaps
+- Poolside playbook: `references/poolside-verification-playbook.md` is the default system prompt contract for every Poolside call in the runtime
+- Poolside stage prompts: `references/poolside-prompts/` adds stage-specific instructions for extraction, evidence, artifacts, review, proof, and repair
 - Policy: requirement-only verification by default; implementation/source reads require explicit exception approval via `LLT_IMPLEMENTATION_READ_APPROVED=1` or `--allow-implementation-reads`
 - Enterprise control plane: tenant-scoped queueing, approval workflow, async execution, dashboards, and regression eval reports are available through `llt_verification_agent.py`
 

@@ -5,6 +5,7 @@
 - Poolside base URL comes from `POOLSIDE_BASE_URL` in `.env`
 - Poolside API key comes from `POOLSIDE_API_KEY` in `.env`
 - Poolside model is `laguna_m_fp8_fp8kv_re_04_2026`
+- Poolside loads `references/poolside-verification-playbook.md` as the default system prompt contract
 - Embeddings use `BAAI/bge-m3`
 - Vector search uses FAISS over the repository index with hybrid semantic plus exact keyword/symbol retrieval
 

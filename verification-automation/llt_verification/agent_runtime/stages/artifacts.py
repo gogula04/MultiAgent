@@ -17,14 +17,53 @@ class ArtifactAgentBase(BaseStageAgent):
             return f"{selected_method.title()} selected: {reason}"
         return f"{selected_method.title()} selected."
 
-    def _ensure_direct_dictionary(self, component_name: str) -> None:
+    def _ensure_direct_dictionary(self, result: Dict[str, object], component_name: str) -> None:
         csv_path = self.runtime.procedure_data_dir / "uut_dictionary.csv"
         yaml_path = self.runtime.procedure_data_dir / "uut_dictionary.yaml"
         if csv_path.exists() and component_name in csv_path.read_text(errors="ignore"):
             return
+        uut_findings = result.get("uut_dictionary_findings", {}) if isinstance(result, dict) else {}
+        matches = uut_findings.get("matches", {}) if isinstance(uut_findings, dict) else {}
+        candidate_matches = matches.get(component_name, []) if isinstance(matches, dict) else []
+        if not candidate_matches:
+            lookup_entry = self.evaluator._lookup_uut_entry(component_name) if hasattr(self.evaluator, "_lookup_uut_entry") else None
+            if isinstance(lookup_entry, dict):
+                candidate_matches = [{"details": lookup_entry}]
+        if not candidate_matches:
+            raise ValueError(f"Direct method requires a proven UUT dictionary match for {component_name}")
+        match_details = {}
+        for candidate in candidate_matches:
+            if isinstance(candidate, dict) and isinstance(candidate.get("details"), dict):
+                match_details = candidate["details"]
+                break
+        if not match_details:
+            raise ValueError(f"Direct method requires a structured UUT dictionary entry for {component_name}")
+        canonical_name = str(match_details.get("uut_name") or match_details.get("name") or component_name).strip()
+        if not canonical_name:
+            raise ValueError(f"Direct method requires a valid UUT dictionary name for {component_name}")
+        step_fcn = str(match_details.get("step_fcn") or match_details.get("stepFcn") or match_details.get("step fcn") or "").strip()
+        if not step_fcn:
+            raise ValueError(f"Direct method requires a proven step function for {component_name}")
         header = ["uut name", "rate", "initFcn", "return", "step fcn", "return_stepfn", "mockFcns", "preconditions comma sep"]
-        row = [component_name, "0.005", "", "void", component_name, "void", "", ""]
-        yaml_entry = {"uut_name": component_name, "rate": "0.005", "init_fcn": "", "step_fcn": component_name, "step_fcn_return": "void", "mock_fcns": [], "preconditions": []}
+        row = [
+            canonical_name,
+            str(match_details.get("rate") or "0.005"),
+            str(match_details.get("init_fcn") or match_details.get("initFcn") or ""),
+            str(match_details.get("step_fcn_return") or match_details.get("return") or "void"),
+            step_fcn,
+            str(match_details.get("return_stepfn") or match_details.get("return_stepFn") or match_details.get("return_step_fcn") or match_details.get("step_fcn_return") or "void"),
+            match_details.get("mock_fcns") or match_details.get("mockFcns") or [],
+            match_details.get("preconditions") or match_details.get("preconditions comma sep") or [],
+        ]
+        yaml_entry = {
+            "uut_name": canonical_name,
+            "rate": row[1],
+            "init_fcn": row[2],
+            "step_fcn": row[4],
+            "step_fcn_return": row[3],
+            "mock_fcns": row[6] if isinstance(row[6], list) else [row[6]] if row[6] else [],
+            "preconditions": row[7] if isinstance(row[7], list) else [row[7]] if row[7] else [],
+        }
         self.runtime.append_csv_row(csv_path, header, row)
         self.runtime.append_yaml_entry(yaml_path, yaml_entry)
 
@@ -45,7 +84,7 @@ class DirectArtifactAgent(ArtifactAgentBase):
     def run(self, result: Dict[str, object], decision: Dict[str, object]) -> Dict[str, object]:
         component_name = result.get("component_name") or result["requirement_id"]
         branch_note = self._branch_note(decision)
-        self._ensure_direct_dictionary(component_name)
+        self._ensure_direct_dictionary(result, component_name)
         missing_inputs, missing_outputs = self._append_missing_data_entries(result)
         types_struct_file = self.runtime.support.append_types_struct(result)
         source_constants = []

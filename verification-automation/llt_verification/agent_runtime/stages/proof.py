@@ -11,7 +11,13 @@ class ProofAgent(BaseStageAgent):
     stage = "11_proof"
 
     def run(self, requirement_package: Dict[str, object], evidence_package: Dict[str, object], normalization_package: Dict[str, object], analysis_package: Dict[str, object], decision: Dict[str, object], artifacts: Dict[str, object], traceability: Dict[str, object], execution_result: Dict[str, object], debug_result: Dict[str, object], review_result: Dict[str, object]) -> Dict[str, object]:
-        status = "passed" if review_result.get("status") == "approved" and execution_result.get("status") in {"passed", "dry_run"} and traceability.get("passed") else "blocked"
+        execution_status = execution_result.get("status")
+        if review_result.get("status") == "approved" and execution_status == "passed" and traceability.get("passed"):
+            status = "passed"
+        elif review_result.get("status") == "approved" and execution_status == "dry_run" and traceability.get("passed"):
+            status = "dry_run"
+        else:
+            status = "blocked"
         json_path = self.state.run_dir / "11_proof_report.json"
         md_path = self.state.run_dir / "11_proof_report.md"
         audit_path = self.state.run_dir / "00_audit_log.json"

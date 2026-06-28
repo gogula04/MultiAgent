@@ -4,10 +4,12 @@ name: llt-verification-coordinator
 description: |
   Requirement-centric, coordinator-led, RAG-backed multi-agent verification
   system with controlled offline learning, tenant-scoped enterprise queueing,
-  and approval-gated evidence access. The coordinator routes requirement,
-  evidence, normalization, analysis, strategy, artifact, traceability,
-  execution, debug, review, and proof packages, while the legacy extraction
-  prompt bundle remains a fallback when the deterministic parser leaves gaps.
+  and approval-gated evidence access. The default Poolside playbook lives in
+  references/poolside-verification-playbook.md and stage prompts live in
+  references/poolside-prompts/. The coordinator routes requirement, evidence,
+  normalization, analysis, strategy, artifact, traceability, execution, debug,
+  review, and proof packages, while the legacy extraction prompt bundle remains
+  a fallback when the deterministic parser leaves gaps.
   Direct/Hybrid selection stays evidence-driven and artifact generation follows
   the branch-specific dictionary/RBTCA/test flow.
 

@@ -8,7 +8,7 @@ metadata:
 # LLT Verification Agent
 
 Use this skill when the user asks to verify a requirement, especially with a prompt like `verify requirement FAF-LLR-401`.
-This skill is the trigger and guardrail layer. The execution engine lives in the agent runtime, Poolside is the only backend, and the detailed flow lives in [references/flow.md](references/flow.md).
+This skill is the trigger and guardrail layer. The execution engine lives in the agent runtime, Poolside is the only backend, the default Poolside playbook lives in [references/poolside-verification-playbook.md](references/poolside-verification-playbook.md), the stage prompt set lives in [references/poolside-prompts/](references/poolside-prompts/), and the detailed flow lives in [references/flow.md](references/flow.md).
 
 ## What To Do
 

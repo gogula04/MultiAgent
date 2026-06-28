@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib import error, request
 
@@ -65,6 +67,15 @@ def _maybe_parse_json(text: str) -> Any:
         return text
 
 
+def _load_text_if_exists(path: Path) -> str:
+    if not path.exists():
+        return ""
+    try:
+        return path.read_text(errors="ignore").strip()
+    except Exception:
+        return ""
+
+
 @dataclass
 class PoolsideClient:
     """Poolside chat adapter."""
@@ -73,13 +84,55 @@ class PoolsideClient:
     api_key: Optional[str] = None
     model: Optional[str] = None
     agent_name: Optional[str] = None
+    playbook_prompt: Optional[str] = None
+    prompt_dir: Optional[Path] = None
     timeout: int = 30
 
+    def _stage_prompt_path(self, stage: str) -> Optional[Path]:
+        prompt_dir = self.prompt_dir or (Path(__file__).resolve().parents[1] / "references" / "poolside-prompts")
+        if not prompt_dir.exists():
+            return None
+        stage_key = re.sub(r"[^a-z0-9]+", "-", stage.strip().lower()).strip("-")
+        candidates = [
+            prompt_dir / f"{stage_key}.md",
+            prompt_dir / f"{stage_key}.txt",
+        ]
+        if stage_key.startswith("legacy-"):
+            candidates.insert(0, prompt_dir / "requirement-extraction.md")
+        if "requirement" in stage_key or "legacy" in stage_key:
+            candidates.insert(0, prompt_dir / "requirement-extraction.md")
+        if "analysis" in stage_key or "strategy" in stage_key or "evidence" in stage_key:
+            candidates.insert(0, prompt_dir / "evidence-and-strategy.md")
+        if "artifact" in stage_key or "direct" in stage_key or "hybrid" in stage_key:
+            candidates.insert(0, prompt_dir / "artifact-generation.md")
+        if "review" in stage_key or "proof" in stage_key:
+            candidates.insert(0, prompt_dir / "review-and-proof.md")
+        if "debug" in stage_key:
+            candidates.insert(0, prompt_dir / "debug-and-repair.md")
+        for path in candidates:
+            if path.exists():
+                return path
+        return prompt_dir / "default.md" if (prompt_dir / "default.md").exists() else None
+
+    def _load_stage_prompt(self, stage: str) -> str:
+        path = self._stage_prompt_path(stage)
+        if path is None:
+            return ""
+        return _load_text_if_exists(path)
+
     def complete(self, stage: str, payload: Dict[str, Any], instructions: Optional[str] = None) -> Dict[str, Any]:
-        system_prompt = instructions or (
-            "You are the planning and verification assistant for an LLT agent. "
-            "Return concise, structured output when possible."
-        )
+        stage_prompt = self._load_stage_prompt(stage)
+        prompt_parts = [
+            part.strip()
+            for part in [
+                self.playbook_prompt or "",
+                stage_prompt,
+                instructions or "",
+                "You are the planning and verification assistant for an LLT agent. Return concise, structured output when possible.",
+            ]
+            if part and part.strip()
+        ]
+        system_prompt = "\n\n---\n\n".join(prompt_parts)
         body = json.dumps(
             {
                 "model": self.model or "laguna_m_fp8_fp8kv_re_04_2026",
@@ -151,10 +204,15 @@ def poolside_from_env() -> PoolsideClient:
     api_key = os.getenv("POOLSIDE_API_KEY", "")
     model = os.getenv("POOLSIDE_AGENT_MODEL", "laguna_m_fp8_fp8kv_re_04_2026")
     agent_name = os.getenv("POOLSIDE_AGENT_NAME")
+    playbook_path = Path(__file__).resolve().parents[1] / "references" / "poolside-verification-playbook.md"
+    playbook_prompt = playbook_path.read_text(errors="ignore").strip() if playbook_path.exists() else ""
+    prompt_dir = Path(__file__).resolve().parents[1] / "references" / "poolside-prompts"
 
     return PoolsideClient(
         endpoint=endpoint,
         api_key=api_key,
         model=model,
         agent_name=agent_name,
+        playbook_prompt=playbook_prompt or None,
+        prompt_dir=prompt_dir,
     )

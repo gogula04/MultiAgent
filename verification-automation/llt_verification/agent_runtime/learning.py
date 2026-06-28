@@ -579,10 +579,11 @@ class LearningStore:
     def record_approved_case(self, report: Dict[str, Any]) -> Dict[str, Any]:
         if not self._learning_enabled():
             return {"status": "skipped", "reason": "auto-learning gate disabled", "files_created": [], "index_update": {"status": "skipped"}}
-        if report.get("status") != "passed" or (report.get("review", {}) or {}).get("status") != "approved":
+        execution_status = str((report.get("execution_result") or {}).get("status") or "")
+        if report.get("status") != "passed" or execution_status != "passed" or (report.get("review", {}) or {}).get("status") != "approved":
             return {
                 "status": "skipped",
-                "reason": "run was not approved",
+                "reason": "run was not approved with a passed execution result",
                 "files_created": [],
                 "index_update": {"status": "skipped"},
             }
