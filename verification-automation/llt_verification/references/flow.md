@@ -11,36 +11,77 @@
 
 ## Current Version Architecture
 
+### Runtime Verification
+
 ```mermaid
 flowchart TD
-    U["User / enterprise job"] --> CLI["llt_verification_agent.py"]
-    CLI --> CP{"Enterprise control plane?"}
-    CP -->|submit / approve / queue| Q["Tenant-scoped queue"]
-    Q --> W["Async worker"]
-    CP -->|verify / query| ORCH["Verification coordinator"]
-    W --> ORCH
-
+    U["User prompt"] --> CLI["llt_verification_agent.py"]
+    CLI --> ORCH["Verification coordinator"]
     ORCH --> R["Requirement Agent"]
     R --> F["Deterministic extraction"]
-    F --> L["Legacy prompts fallback"]
+    F -. gap fill .-> L["Legacy prompts fallback"]
     R --> E["Repo Evidence Agent"]
     E --> I["Hybrid RAG retrieval<br/>semantic + keyword + citations"]
     I --> N["Normalization Agent"]
     N --> A["Poolside Analysis Agent"]
     A --> S["Strategy Agent"]
     S --> D{"Direct / Hybrid / Blocked"}
+    D -->|Blocked| P0["Proof Agent"]
     D -->|Direct| DA["Direct Artifact Agent"]
     D -->|Hybrid| HA["Hybrid Artifact Agent"]
     DA --> T["Traceability Agent"]
     HA --> T
     T --> X["Execution Agent"]
     X --> G{"Passed?"}
-    G -->|No| B["Debug Agent"]
-    B --> X
+    G -->|No, repairable| B["Debug Agent"]
+    G -->|No, blocked| P0
+    B --> H["Bounded self-healing loop"]
+    H --> X
     G -->|Yes| V["Reviewer Agent"]
     V --> P["Proof Agent"]
     P --> LRN["Controlled offline learning store"]
-    P --> DASH["Tenant dashboard / metrics / regressions"]
+```
+
+### Enterprise Control Plane
+
+```mermaid
+flowchart TD
+    CLI["llt_verification_agent.py"] --> CP{"Enterprise control plane?"}
+    CP -->|submit| S["Submit job"]
+    CP -->|approve| A["Approve job"]
+    CP -->|run queue| Q["Tenant-scoped queue"]
+    Q --> W["Async worker"]
+    W --> ORCH["Verification coordinator"]
+    CP --> DASH["Tenant dashboard / metrics / regressions"]
+    CP --> RPT["Tenant regression reports"]
+```
+
+### Controlled Learning
+
+```mermaid
+flowchart TD
+    P["Proof Agent"] --> G{"Passed proof + approved review?"}
+    G -->|Yes| LRN["Controlled offline learning store"]
+    LRN --> IDX["Local retrieval index refresh"]
+    LRN --> TPL["Method templates"]
+    LRN --> EVALS["Derived eval set"]
+    G -->|No| STOP["No learning update"]
+```
+
+### CLI Entrypoints
+
+```mermaid
+flowchart TD
+    CLI["llt_verification_agent.py"] --> IDX["--index"]
+    CLI --> QRY["--query / interactive"]
+    CLI --> VRF["--verify / prompt-style verify"]
+    CLI --> ENT["--submit-job / --approve-job / --run-queue / --enterprise-dashboard / --enterprise-regression-evals"]
+    CLI --> RPL["--replay-learning-case / --replay-learning-evals"]
+    IDX --> VS["Vector index"]
+    QRY --> VS
+    VRF --> ORCH["Verification coordinator"]
+    ENT --> CP["Enterprise control plane"]
+    RPL --> LRN["Controlled learning replay"]
 ```
 
 1. Read the user prompt as a requirement ID or requirement text.
@@ -66,3 +107,9 @@ flowchart TD
 16. Replay approved learned cases offline with `--replay-learning-case` or `--replay-learning-evals` without re-enabling auto-learning.
 17. For enterprise usage, submit jobs to the tenant-scoped queue, require approval before execution, run approved jobs asynchronously, and publish tenant-scoped dashboards and regression metrics.
 18. Return a proof report with requirement mapping, source mapping, data mapping, method decision, files changed, commands run, test results, review result, learning result if any, and final status.
+
+## Accuracy Notes
+
+- The legacy prompt bundle is a fallback inside requirement extraction, not a separate stage.
+- Debug is a bounded self-healing loop with a clean stop on unrecoverable failures.
+- Enterprise metrics and dashboards are produced by the control plane, not by proof alone.
