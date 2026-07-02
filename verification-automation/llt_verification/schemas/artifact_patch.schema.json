@@ -1,6 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Artifact Patch",
-  "type": "object",
-  "required": ["requirement_id", "selected_method", "files_created", "files_updated", "status"]
-}

@@ -1,7 +1,0 @@
-name: hybrid-artifact-agent
-description: Builds Hybrid-method data dictionaries, the .rvstest procedure vector, RBTCA YAML, and Python pytest_smart tests, and uses proven source constants or constraints only when they are needed for exact verification values.
-inputs:
-  - verification_package
-  - strategy_decision
-outputs:
-  - artifact_patch

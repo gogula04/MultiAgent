@@ -1,6 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Execution Result",
-  "type": "object",
-  "required": ["requirement_id", "status", "command", "exit_code", "stdout", "stderr"]
-}

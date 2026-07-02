@@ -1,7 +1,0 @@
-name: execution-agent
-description: Runs pytest or RVS against the generated verification artifacts and captures the command output, exit code, and logs.
-inputs:
-  - artifact_patch
-  - strategy_decision
-outputs:
-  - execution_result

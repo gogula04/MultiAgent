@@ -1,8 +1,0 @@
-name: strategy-agent
-description: Chooses Direct, Hybrid, or Blocked from the evidence-backed verification package, based on requirement text, dictionaries, and UUT evidence rather than repo style alone.
-inputs:
-  - requirement_package
-  - evidence_package
-  - analysis_package
-outputs:
-  - strategy_decision

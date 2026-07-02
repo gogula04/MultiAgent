@@ -1,6 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Analysis Package",
-  "type": "object",
-  "required": ["requirement_id", "summary", "key_signals", "likely_method", "risks", "recommendations", "status"]
-}

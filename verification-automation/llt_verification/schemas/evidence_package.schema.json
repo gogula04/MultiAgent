@@ -1,6 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Evidence Package",
-  "type": "object",
-  "required": ["requirement_id", "classification", "inputs", "outputs", "testable", "expressions", "constants", "robustness_cases", "data_dictionary_findings", "source_file_findings", "uut_dictionary_findings", "testability_analysis", "bold_terms", "status"]
-}
